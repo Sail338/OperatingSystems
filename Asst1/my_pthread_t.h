@@ -12,6 +12,7 @@
 #define _GNU_SOURCE
 
 /* include lib header files that you need here: */
+#include <ucontext.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -30,6 +31,26 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 /* define your data structures here: */
+typdef struct threadNode
+{
+	threadNode * next;
+	ucontext_t thread;
+	double spawnTime;
+} threadNode;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Feel free to add your own auxiliary data structures
 
