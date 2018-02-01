@@ -18,7 +18,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <time.h>
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
@@ -36,9 +36,20 @@ typdef struct threadNode
 	threadNode * next;
 	ucontext_t thread;
 	double spawnTime;
+    int tid;
 } threadNode;
 
+typedef struct MultiQ{
+    threadNode * front;
+    threadNode * rear;
+    int size;
+    double min;
+    double max;
+    int upjmp;
+    int dwnjmp;
+}
 
+MultiQ ** Scheduler = NULL;
 
 
 
