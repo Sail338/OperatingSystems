@@ -5,14 +5,6 @@
 //name: SaraAnn Stanway, Sam Azouzi, Srihari Shankar
 //iLab Server: template
 
-
-///////////////// DATA STRUCTURE ////////////////////
-
-
-
-
-////////////////////////////////////////////////////
-
 #include "my_pthread_t.h"
 
 /* create a new thread */
