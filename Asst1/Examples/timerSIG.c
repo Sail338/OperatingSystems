@@ -23,11 +23,16 @@ int main(){
     sigaction(SIGVTALRM, &sa, NULL);
     
     //Set up the timer to occur every 25msecs
-    timer.it_value.tv_sec = 0;
+   	//second and milliseconds both included so you can have x.y seconds (we think)
+	//timeval struct containing time until timer next expires and signal sent. if it's 0, timer is disabled
+	timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = 25000;
+	//timeval struct with value to which timer will be reset after expiration. if 0, timer will be disabled after the interval, else will expire repeatedly after this interval
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = 25000;
-    setitimer(ITIMER_VIRTUAL, &timer, NULL);
+	//sets the signal for when timers expire to the specified handler
+    //if ITIMER_REAL, process sent to SIGALRM after WALL CLOCK time elapsed. if ITIMER_VIRTUAL, sent to SIGVWTALRM after specified PROCESS RUNTIME (i.e. execution time in user mode)
+	setitimer(ITIMER_VIRTUAL, &timer, NULL);
     //At this point you should be done
     while(1);
 }
