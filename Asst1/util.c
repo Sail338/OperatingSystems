@@ -12,7 +12,7 @@ void enqueue(threadNode *Node){
         _enqueueHelper(Node,threadq);
         threadq ->size =1;
         threadq -> min = scheduler->tq[Node->qlevel-1]->max;
-        threadq->max = threadq->min + (MULTIPLIER * Node->qlevel * 25000);
+        threadq->max = threadq->min + ( MULTIPLIER * Node->qlevel * 25000 );
         
     } 
     //front is empty similar if the list has not been malloced yet

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 #define LEVELS 10;
-#define MULTIPLIER 2;
+int MULTIPLIER = 2;
 /* define your data structures here: */
 typedef struct threadNode
 {
@@ -20,15 +20,6 @@ typedef struct threadNode
     int qlevel;
 } threadNode;
 
-
-typedef struct Scheduler{
-    threadQ ** tq;
-    threadNode* current;
-    int no_threads;
-}Scheduler;
- 
-
-
 typedef struct threadQ{
     threadNode * front;
     threadNode * rear;
@@ -38,6 +29,15 @@ typedef struct threadQ{
     int upjmp;
     int dwnjmp;
 } threadQ;
+
+typedef struct Scheduler{
+    threadQ ** tq;
+    threadNode* current;
+    int no_threads;
+}Scheduler;
+ 
+
+
 
 Scheduler* scheduler = NULL;
 void enqueue(threadNode *);

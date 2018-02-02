@@ -5,12 +5,13 @@ RANLIB = ranlib
 
 
 Target: my_pthread.a
-
-my_pthread.a: my_pthread.o
+util: util.h
+	$(CC) $(CFLAGS) util.c
+my_pthread.a: my_pthread.o 
 	$(AR) libmy_pthread.a my_pthread.o
 	$(RANLIB) libmy_pthread.a
 
-my_pthread.o: my_pthread_t.h
+my_pthread.o: my_pthread_t.h util.o
 	$(CC) -pthread $(CFLAGS) my_pthread.c
 
 clean:
