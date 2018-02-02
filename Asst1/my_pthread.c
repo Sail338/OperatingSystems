@@ -10,6 +10,7 @@
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+	
 	return 0;
 };
 
@@ -47,5 +48,6 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	return 0;
 };
+
 
 
