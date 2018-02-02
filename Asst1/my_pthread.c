@@ -6,6 +6,7 @@
 //iLab Server: template
 
 #include "my_pthread_t.h"
+#include <ucontext.h>
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
@@ -14,6 +15,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
+
 	return 0;
 };
 

@@ -31,13 +31,32 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 /* define your data structures here: */
-typdef struct threadNode
+typedef struct threadNode
 {
-	threadNode * next;
+	struct threadNode * next;
 	ucontext_t thread;
 	double spawnTime;
-    int tid;
+    uint tid;
 } threadNode;
+/**
+ * typedef struct BiggerStruct{
+ *    MultiQ * List;
+ *    threadNode * Current;
+ *    Hashtable of all threads with their thread ids
+ *    Number of threads currently running
+ * }
+ * 
+ * 
+ * 
+**/
+typedef struct Scheduler{
+    MultiQ ** mq;
+    threadNode* current;
+
+
+
+
+}Scheduler;
 
 typedef struct MultiQ{
     threadNode * front;
