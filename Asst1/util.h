@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -29,6 +30,17 @@ typedef struct threadQ{
     int upjmp;
     int dwnjmp;
 } threadQ;
+
+//mutex struct definition
+typedef struct my_pthread_mutex_t
+{
+	bool isLocked;
+	threadQ * waitQ;
+	//may want to also include pointer to currently executing thread
+} my_pthread_mutex_t;
+
+void mutex_enqueue(threadNode*, my_pthread_mutex_t *);
+
 
 typedef struct Scheduler{
     threadQ ** tq;

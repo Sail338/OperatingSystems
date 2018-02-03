@@ -51,13 +51,38 @@ threadNode* dequeue ()
 }
 
 
-void _thread_q_init(threadNode *Node,threadQ* threadq){
+void _thread_q_init(threadNode * tNode,threadQ* threadq){
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
-        threadq ->front = Node;
-        threadq ->rear = Node;
+        threadq ->front = tNode;
+        threadq ->rear = tNode;
         threadq ->front ->next = threadq->rear;
         threadq -> rear ->next = NULL;
-
-
 }
+
+
+
+void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
+{
+	if (mutex->waitQ == NULL)
+	{
+		mutex->waitQ = (threadQ *)malloc(sizeof(threadQ));
+		_thread_q_init(tNode, mutex->waitQ);
+	}
+	
+	else if (mutex->waitQ->front == NULL)
+	{
+		_thread_q_init(tNode, mutex->waitQ);
+	}
+	else
+	{
+		threadNode * rear = mutex->waitQ->rear;
+		rear->next = (threadNode *)malloc(sizeof(threadNode));
+		rear->next = tNode;
+		mutex->waitQ->rear = rear->next;
+		mutex->waitQ->rear->next = NULL;
+	}
+}
+
+
+

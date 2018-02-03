@@ -15,7 +15,7 @@
 #include "util.h"
 #include <ucontext.h>
 #include <unistd.h>
-#include <stdbool>
+#include <stdbool.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -26,15 +26,6 @@ typedef uint my_pthread_t;
 typedef struct threadControlBlock {
 	/* add something here */
 } tcb; 
-
-/* mutex struct definition */
-typedef struct my_pthread_mutex_t 
-{
-	bool isLocked;
-	threadQ * waitQ;
-	//may want to also include pointer to currentlyl executing thread
-
-} my_pthread_mutex_t;
 
 
 // Feel free to add your own auxiliary data structures
