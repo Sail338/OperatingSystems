@@ -53,5 +53,6 @@ typedef struct Scheduler{
 Scheduler* scheduler;
 void enqueue(threadNode *);
 threadNode* dequeue();
+threadNode* mutex_dequeue(my_pthread_mutex_t *):
 void _thread_q_init(threadNode *,threadQ* );
 #endif

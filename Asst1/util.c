@@ -68,11 +68,13 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	{
 		mutex->waitQ = (threadQ *)malloc(sizeof(threadQ));
 		_thread_q_init(tNode, mutex->waitQ);
+		mutex ->waitQ -> size = 1;
 	}
 	
 	else if (mutex->waitQ->front == NULL)
 	{
 		_thread_q_init(tNode, mutex->waitQ);
+		mutex ->waitQ ->size =1;
 	}
 	else
 	{
@@ -81,7 +83,20 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 		rear->next = tNode;
 		mutex->waitQ->rear = rear->next;
 		mutex->waitQ->rear->next = NULL;
+		mutex ->waitQ -> size ++;
 	}
+}
+threadNode * mutex_dequeue(my_pthread_mutex_t *mutex){
+	if(mutex->waitQ ->size == 0){
+
+		return NULL;
+	} else{
+			threadNode * ptr = mutex->waitQ->front;
+			mutex->waitQ->front = mutex->waitQ->front->next;
+			mutex->waitQ->size --;
+			return ptr;
+	}
+
 }
 
 
