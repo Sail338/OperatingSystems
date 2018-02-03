@@ -42,5 +42,5 @@ typedef struct Scheduler{
 Scheduler* scheduler = NULL;
 void enqueue(threadNode *);
 threadNode* dequeue();
-void _enqueueHelper(threadNode *,threadQ* );
+void _thread_q_init(threadNode *,threadQ* );
 #endif

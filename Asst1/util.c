@@ -9,7 +9,7 @@ void enqueue(threadNode *Node){
     threadQ* threadq = scheduler->tq[Node->qlevel];
     if(threadq == NULL){
         threadq = malloc(sizeof(threadQ));
-        _enqueueHelper(Node,threadq);
+        _thread_q_init(Node,threadq);
         threadq ->size =1;
         threadq -> min = scheduler->tq[Node->qlevel-1]->max;
         threadq->max = threadq->min + ( MULTIPLIER * Node->qlevel * 25000 );
@@ -17,7 +17,7 @@ void enqueue(threadNode *Node){
     } 
     //front is empty similar if the list has not been malloced yet
     else if (threadq -> front == NULL) {
-        _enqueueHelper(Node,threadq);
+        _thread_q_init(Node,threadq);
         threadq ->size ++;
     } 
     // add to the end of the Linked list
@@ -51,7 +51,7 @@ threadNode* dequeue ()
 }
 
 
-void _enqueueHelper(threadNode *Node,threadQ* threadq){
+void _thread_q_init(threadNode *Node,threadQ* threadq){
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = Node;
