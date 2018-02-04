@@ -13,6 +13,7 @@ void enqueue(threadNode *Node){
         threadq ->size =1;
         threadq -> min = scheduler->tq[Node->qlevel-1]->max;
         threadq->max = threadq->min + ( MULTIPLIER * Node->qlevel * 25000 );
+        threadq->threshold = MAXTHD - Node->qlevel;
         
     } 
     //front is empty similar if the list has not been malloced yet
@@ -33,30 +34,59 @@ void enqueue(threadNode *Node){
 
 threadNode* dequeue ()
 {
+    
     int curr = 0;
     threadQ* threadq = NULL;
-    do 
-    {
-        threadq = scheduler->tq[curr];
-        curr++;
-    }
-    while(threadq == NULL || threadq ->front == NULL);
+    threadq = _scan_non_empty(&curr)
     if (threadq == NULL)
     {
         return NULL;
     }
+    if(threadq->threshold == 0 && curr < LEVELS){
+        curr += 1;
+        //Fudge Sri and SaraAnn; Shut up Mom
+        threadQ * temp = threadq;
+        threadQ * ptr = _scan_non_empty(&curr);
+        if(ptr != NULL){
+            temp->threshold = MAXTHD - curr;
+            ptr->threshold -= 1;
+            threadNode * tNode = threadq -> front;
+            threadq -> front = threadq ->front->next;
+            return tNode;
+        }
+        //Nothing to Dequeue or Error; Figure it out
+        else{
+            return NULL;
+            //errno = Coffee Overflow Exception
+        }
+    }
+    threadq->threshold -= 1;
     threadNode * tNode = threadq -> front;
     threadq -> front = threadq ->front->next;
     return tNode;
 }
 
+threadQ * _scan_non_empty(int * curr){
+    threadQ* threadq = NULL;
+    do
+    {
+        threadq = scheduler->tq[*curr];
+        *curr++;
+        if(*curr >= LEVELS){
+            return NULL;
+        }
+    }
+    while(threadq == NULL || (threadq!=NULL && threadq->front == NULL);
+    return threadq
+
+}
 
 void _thread_q_init(threadNode * tNode,threadQ* threadq){
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;
         threadq ->rear = tNode;
-        threadq ->front ->next = threadq->rear;
+        threadq ->front ->next = NULL;
         threadq -> rear ->next = NULL;
 }
 

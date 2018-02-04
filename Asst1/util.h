@@ -11,6 +11,8 @@
 #include <time.h>
 #define LEVELS 10
 #define MULTIPLIER 2
+//Has to keep in mind how many levels in the Scheduler
+#define MAXTHD 10
 /* define your data structures here: */
 typedef struct threadNode
 {
@@ -28,6 +30,7 @@ typedef struct threadQ{
     threadNode * front;
     threadNode * rear;
     int size;
+    int threshold;
     double min;
     double max;
     int upjmp;
@@ -55,6 +58,7 @@ typedef struct Scheduler{
 
 Scheduler* scheduler;
 void enqueue(threadNode *);
+threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
 threadNode* mutex_dequeue(my_pthread_mutex_t *):
 void _thread_q_init(threadNode *,threadQ* );
