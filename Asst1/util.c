@@ -17,7 +17,12 @@ void enqueue(threadNode *Node){
         threadq = malloc(sizeof(threadQ));
         thread_q_init(Node,threadq);
         threadq ->size =1;
-        threadq -> min = scheduler->tq[Node->qlevel-1]->max;
+        if(Node->qlevel == 0){
+            threadq->min = 0;
+        }
+        else{
+            threadq -> min = scheduler->tq[Node->qlevel-1]->max;
+        }
         threadq->max = threadq->min + ( MULTIPLIER * Node->qlevel * 25000 );
         threadq->threshold = MAXTHD - Node->qlevel;
         

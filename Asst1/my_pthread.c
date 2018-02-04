@@ -4,7 +4,6 @@
 
 //name: SaraAnn Stanway, Sam Azouzi, Srihari Shankar
 //iLab Server: template
-
 #include "my_pthread_t.h"
 #include <sys/time.h>
 #include <ucontext.h>
@@ -63,13 +62,12 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	newthread.uc_stack.ss_sp=malloc(MEM);
 	newthread.uc_stack.ss_size=MEM;
  	newthread.uc_stack.ss_flags=0;
-
 	node ->thread = malloc(sizeof(ucontext_t));
-	node -> thread = &newthread;
 	printf("finished makeing node \n");
-	makecontext(&newthread, (void*)&function, 1,arg);
-//	enqueue(node);
-//	swapcontext(&newthread,&curr);
+	makecontext(&newthread, (void*)(function), 1,arg);
+    node->thread = &newthread;
+	enqueue(node);
+    swapcontext(&curr,&newthread);
 	/**
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued

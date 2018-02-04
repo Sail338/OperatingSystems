@@ -60,9 +60,9 @@ typedef struct Scheduler{
 }Scheduler;
  
 
+void enqueue(threadNode *);
 int init;
 Scheduler* scheduler;
-void enqueue(threadNode *);
 threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
 threadNode* mutex_dequeue(my_pthread_mutex_t *);
