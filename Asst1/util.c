@@ -4,12 +4,18 @@
  *
  **/
 #include "util.h"
+/**
+ *Enqueues a Node into the multi level queue. We assume the node has already been malloced the apprpirate level is already set
+ *@param threadNode * Node  : A threadNode that has been malloced
+ *
+ **/
+
 void enqueue(threadNode *Node){
-    //check if the head if the queue is null
+    //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
     if(threadq == NULL){
         threadq = malloc(sizeof(threadQ));
-        _thread_q_init(Node,threadq);
+        thread_q_init(Node,threadq);
         threadq ->size =1;
         threadq -> min = scheduler->tq[Node->qlevel-1]->max;
         threadq->max = threadq->min + ( MULTIPLIER * Node->qlevel * 25000 );
@@ -18,7 +24,7 @@ void enqueue(threadNode *Node){
     } 
     //front is empty similar if the list has not been malloced yet
     else if (threadq -> front == NULL) {
-        _thread_q_init(Node,threadq);
+        thread_q_init(Node,threadq);
         threadq ->size ++;
     } 
     // add to the end of the Linked list
@@ -32,12 +38,12 @@ void enqueue(threadNode *Node){
 }
 
 
-threadNode* dequeue ()
-{
+threadNode* dequeue () {
+
     
     int curr = 0;
     threadQ* threadq = NULL;
-    threadq = _scan_non_empty(&curr)
+    threadq = _scan_non_empty(&curr);
     if (threadq == NULL)
     {
         return NULL;
@@ -65,30 +71,26 @@ threadNode* dequeue ()
     threadq -> front = threadq ->front->next;
     return tNode;
 }
-
+/**
+ * Scans for non empty bucket in the multi level prioirty queue
+ * @param int * curr takes a pointer to an iterator which is the current index in our Array of queues
+ * 
+ */
 threadQ * _scan_non_empty(int * curr){
     threadQ* threadq = NULL;
     do
     {
         threadq = scheduler->tq[*curr];
-        *curr++;
+        *curr = *curr +1;
         if(*curr >= LEVELS){
             return NULL;
         }
     }
     while(threadq == NULL || (threadq!=NULL && threadq->front == NULL);
-    return threadq
+    return threadq;
 
 }
 
-void _thread_q_init(threadNode * tNode,threadQ* threadq){
-        threadq -> front = (threadNode *)malloc(sizeof(threadNode));
-        threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
-        threadq ->front = tNode;
-        threadq ->rear = tNode;
-        threadq ->front ->next = NULL;
-        threadq -> rear ->next = NULL;
-}
 
 
 
@@ -97,13 +99,13 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	if (mutex->waitQ == NULL)
 	{
 		mutex->waitQ = (threadQ *)malloc(sizeof(threadQ));
-		_thread_q_init(tNode, mutex->waitQ);
+		thread_q_init(tNode, mutex->waitQ);
 		mutex ->waitQ -> size = 1;
 	}
 	
 	else if (mutex->waitQ->front == NULL)
 	{
-		_thread_q_init(tNode, mutex->waitQ);
+		thread_q_init(tNode, mutex->waitQ);
 		mutex ->waitQ ->size =1;
 	}
 	else
@@ -131,3 +133,11 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex){
 
 
 
+void  thread_q_init(threadNode * tNode,threadQ* threadq){
+        threadq -> front = (threadNode *)malloc(sizeof(threadNode));
+        threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
+        threadq ->front = tNode;
+        threadq ->rear = tNode;
+        threadq ->front ->next = NULL;
+        threadq -> rear ->next = NULL;
+}

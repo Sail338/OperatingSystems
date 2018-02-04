@@ -60,6 +60,6 @@ Scheduler* scheduler;
 void enqueue(threadNode *);
 threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
-threadNode* mutex_dequeue(my_pthread_mutex_t *):
-void _thread_q_init(threadNode *,threadQ* );
+threadNode* mutex_dequeue(my_pthread_mutex_t *);
+void thread_q_init(threadNode *,threadQ*);
 #endif
