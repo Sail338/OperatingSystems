@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
+#include <signal.h>
 #define LEVELS 10
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
@@ -17,7 +19,7 @@
 typedef struct threadNode
 {
 	struct threadNode * next;
-	ucontext_t thread;
+	ucontext_t* thread;
 	double spawnTime;
     uint tid;
     int qlevel;
@@ -52,10 +54,13 @@ typedef struct Scheduler{
     threadQ ** tq;
     threadNode* current;
     int no_threads;
+	struct sigaction sa;
+    struct itimerval timer;
+
 }Scheduler;
  
 
-
+int init;
 Scheduler* scheduler;
 void enqueue(threadNode *);
 threadQ* _scan_non_empty(int*curr);
