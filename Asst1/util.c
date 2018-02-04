@@ -44,16 +44,23 @@ threadNode* dequeue () {
     int curr = 0;
     threadQ* threadq = NULL;
     threadq = _scan_non_empty(&curr);
+    //Find the first threadQ that is non_empty
+    //If NULL is returned, this means we either have nothing to Dequeue or and error has happened
+    //Error could be you dequeued before you enqueued (ya idoit)
     if (threadq == NULL)
     {
         return NULL;
     }
     if(threadq->threshold == 0 && curr < LEVELS){
+        //Current will be altered withint the scan function. When the notice that the threshold
+        //Has been set to 0, we scan for another non empty queue after the threshold.
         curr += 1;
         //Fudge Sri and SaraAnn; Shut up Mom
+        //We need to store the old threadQ and the new threadQ so that we can updates both thresholds
         threadQ * temp = threadq;
         threadQ * ptr = _scan_non_empty(&curr);
         if(ptr != NULL){
+            //Because curr represents the level, our thershold will be MAXTHD - curr;
             temp->threshold = MAXTHD - curr;
             ptr->threshold -= 1;
             threadNode * tNode = threadq -> front;
@@ -86,7 +93,7 @@ threadQ * _scan_non_empty(int * curr){
             return NULL;
         }
     }
-    while(threadq == NULL || (threadq!=NULL && threadq->front == NULL);
+    while(threadq == NULL || (threadq!=NULL && threadq->front == NULL));
     return threadq;
 
 }
