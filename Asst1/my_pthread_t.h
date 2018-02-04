@@ -12,8 +12,10 @@
 #define _GNU_SOURCE
 
 /* include lib header files that you need here: */
+#include "util.h"
 #include <ucontext.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -24,11 +26,6 @@ typedef uint my_pthread_t;
 typedef struct threadControlBlock {
 	/* add something here */
 } tcb; 
-
-/* mutex struct definition */
-typedef struct my_pthread_mutex_t {
-	/* add something here */
-} my_pthread_mutex_t;
 
 
 // Feel free to add your own auxiliary data structures

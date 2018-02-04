@@ -6,7 +6,6 @@
 //iLab Server: template
 
 #include "my_pthread_t.h"
-#include <ucontext.h>
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
@@ -31,7 +30,16 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-	return 0;
+	mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
+	//if not enough memory to alloc for new mutex
+	if (mutex)
+	{
+		mutex -> isLocked = false;
+		mutex -> waitQ = NULL;
+		return 0;
+	}
+	return -1;
+	//ask Franny about EBUSY
 };
 
 /* aquire the mutex lock */
