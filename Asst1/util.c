@@ -71,7 +71,7 @@ threadNode* dequeue ()
 
 threadQ * get_next_executable(int * curr)
 {
-	threadQ non_empty = _scan_non_empty(curr);
+	threadQ * non_empty = _scan_non_empty(curr);
 	if (non_empty -> threshold == 0)
 	{
 		non_empty -> threshold = MAXTHD - *curr;
@@ -98,9 +98,6 @@ threadQ * _scan_non_empty(int * curr){
     while(threadq == NULL || (threadq!=NULL && threadq->front == NULL));
     return threadq;
 }
-
-
-
 
 void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 {
@@ -141,7 +138,6 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 	}
 
 }
-
 
 
 void  thread_q_init(threadNode * tNode,threadQ* threadq){
