@@ -86,6 +86,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	ucontext_t newthread;
 	threadNode * node = NULL;
 	node = createNewNode(node,0,newthread,25,(double)time(NULL),thread,function,arg);
+	getcontext(&curr);
+	scheduler->current->thread = &curr;
 	swapcontext(scheduler->current->thread,node->thread);	
 	printf("HEY I DID I THING\n");
 	/**
