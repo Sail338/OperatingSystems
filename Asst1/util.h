@@ -19,7 +19,7 @@
 typedef struct threadNode
 {
 	struct threadNode * next;
-	ucontext_t* thread;
+	ucontext_t thread;
 	double spawnTime;
     uint tid;
     int qlevel;

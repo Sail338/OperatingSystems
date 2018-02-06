@@ -18,8 +18,8 @@ void sig_hanlder(){
 
 
 }
-threadNode * createNewNode(threadNode *node,int level,ucontext_t  newthread,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
-
+threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
+	ucontext_t newthread;
 	node = (threadNode *)malloc(sizeof(threadNode));
 	node -> tid = &node;
 
@@ -40,16 +40,12 @@ threadNode * createNewNode(threadNode *node,int level,ucontext_t  newthread,int 
 		newthread. uc_stack.ss_sp=malloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
  		newthread. uc_stack.ss_flags=0;
-		node ->thread = malloc(sizeof(ucontext_t));
 		makecontext(&newthread, (void*)(function), 1,arg);
 	}
 	
-	node ->thread = malloc(sizeof(ucontext_t*));
+	//node ->thread = malloc(sizeof(ucontext_t*));
 	
-    node->thread = &newthread;
-	if (function == NULL){
-
-	}
+    node->thread = newthread;
 	return node;
 	
 }
@@ -78,17 +74,15 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler -> timer.it_value.tv_usec = 25000;
 		scheduler ->timer.it_interval.tv_sec = 0;
 		scheduler ->timer.it_interval.tv_usec = 25000;
-		scheduler->current = createNewNode(scheduler->current,0,curr,25,(double)time(NULL),NULL,NULL,NULL);
-	
+		scheduler->current = NULL;
+		scheduler->current = createNewNode(scheduler->current,0,25,(double)time(NULL),NULL,NULL,NULL);
+			
 		
 	}
 	//create a threadNode
-	ucontext_t newthread;
 	threadNode * node = NULL;
-	node = createNewNode(node,0,newthread,25,(double)time(NULL),thread,function,arg);
-	getcontext(&curr);
-	scheduler->current->thread = &curr;
-	swapcontext(scheduler->current->thread,node->thread);	
+	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
+	swapcontext(&(scheduler->current->thread),&(node->thread));	
 	printf("HEY I DID I THING\n");
 	/**
 	 *

@@ -4,7 +4,7 @@ int func(){
 	printf("new thread created\n");
 	printf("HELLO WORLD\n");
 	printf("KEK\n");
-	setcontext(scheduler->current->thread);
+	setcontext(&(scheduler->current->thread));
 	return  0;
 
 }
