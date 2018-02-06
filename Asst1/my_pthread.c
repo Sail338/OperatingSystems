@@ -16,13 +16,51 @@
 void sig_hanlder(){
 	printf("%s","I am a sig handler");
 
+
 }
+threadNode * createNewNode(threadNode *node,int level,ucontext_t  newthread,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
+
+	node = (threadNode *)malloc(sizeof(threadNode));
+	node -> tid = &node;
+
+	node -> next = NULL;
+	node -> spawnTime = spawnTime; 
+	node -> numSlices = numSlices;
+	node -> qlevel = level;
+	/**
+	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
+	 * **/
+
+	getcontext(&newthread);
+	if(function != NULL){
+
+		*thread = node ->tid;
+	//we dont want anything to happen after thread is done
+		newthread . uc_link = 0;
+		newthread. uc_stack.ss_sp=malloc(MEM);
+		newthread. uc_stack.ss_size=MEM;
+ 		newthread. uc_stack.ss_flags=0;
+		node ->thread = malloc(sizeof(ucontext_t));
+		makecontext(&newthread, (void*)(function), 1,arg);
+	}
+	
+	node ->thread = malloc(sizeof(ucontext_t*));
+	
+    node->thread = &newthread;
+	if (function == NULL){
+
+	}
+	return node;
+	
+}
+
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	/**
 	 *
 	 *Initlaize scheduler
 	 **/
+	ucontext_t curr;
 	if(init == 0){
 		scheduler = (Scheduler *)malloc(sizeof(Scheduler));
 		scheduler->tq = (threadQ **)malloc(sizeof(threadQ *) * LEVELS);
@@ -40,34 +78,16 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler -> timer.it_value.tv_usec = 25000;
 		scheduler ->timer.it_interval.tv_sec = 0;
 		scheduler ->timer.it_interval.tv_usec = 25000;
-		
-
+		scheduler->current = createNewNode(scheduler->current,0,curr,25,(double)time(NULL),NULL,NULL,NULL);
+	
 		
 	}
 	//create a threadNode
-	threadNode * node;
-	node = malloc(sizeof(threadNode));
-	node -> tid = &node;
-	*thread = node ->tid;
-	node -> next = NULL;
-	node -> spawnTime = (double)time(NULL); 
-	node -> numSlices = 25;
-	node -> qlevel = 0;
-	ucontext_t curr;
 	ucontext_t newthread;
-	getcontext(&curr);
-	getcontext(&newthread);
-	//we dont want anything to happen after thread is done
-	newthread.uc_link = 0;
-	newthread.uc_stack.ss_sp=malloc(MEM);
-	newthread.uc_stack.ss_size=MEM;
- 	newthread.uc_stack.ss_flags=0;
-	node ->thread = malloc(sizeof(ucontext_t));
-	printf("finished makeing node \n");
-	makecontext(&newthread, (void*)(function), 1,arg);
-    node->thread = &newthread;
-	enqueue(node);
-    swapcontext(&curr,&newthread);
+	threadNode * node = NULL;
+	node = createNewNode(node,0,newthread,25,(double)time(NULL),thread,function,arg);
+	swapcontext(scheduler->current->thread,node->thread);	
+	printf("HEY I DID I THING\n");
 	/**
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
@@ -80,6 +100,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		}
 	return 0;
 };
+
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
