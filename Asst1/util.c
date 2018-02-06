@@ -43,12 +43,12 @@ void enqueue(threadNode *Node){
 }
 
 
-threadNode* dequeue () {
-
-    
-    int curr = 0;
+threadNode* dequeue () 
+{
+    int *curr;
+	*curr = 0;
     threadQ* threadq = NULL;
-    threadq = _scan_non_empty(&curr);
+    threadq = get_next_executable(curr);
     //Find the first threadQ that is non_empty
     //If NULL is returned, this means we either have nothing to Dequeue or and error has happened
     //Error could be you dequeued before you enqueued (ya idoit)
@@ -56,29 +56,8 @@ threadNode* dequeue () {
     {
         return NULL;
     }
-    if(threadq->threshold == 0 && curr < LEVELS){
-        //Current will be altered withint the scan function. When the notice that the threshold
-        //Has been set to 0, we scan for another non empty queue after the threshold.
-        curr += 1;
-        //Fudge Sri and SaraAnn; Shut up Mom
-        //We need to store the old threadQ and the new threadQ so that we can updates both thresholds
-        threadQ * temp = threadq;
-        threadQ * ptr = _scan_non_empty(&curr);
-        if(ptr != NULL){
-            //Because curr represents the level, our thershold will be MAXTHD - curr;
-            temp->threshold = MAXTHD - curr;
-            ptr->threshold -= 1;
-            threadNode * tNode = threadq -> front;
-            threadq -> front = threadq ->front->next;
-            return tNode;
-        }
-        //Nothing to Dequeue or Error; Figure it out
-        else{
-            return NULL;
-            //errno = Coffee Overflow Exception
-        }
-    }
-    threadq->threshold -= 1;
+    
+	threadq->threshold -= 1;
     threadNode * tNode = threadq -> front;
     threadq -> front = threadq ->front->next;
     return tNode;
@@ -88,6 +67,24 @@ threadNode* dequeue () {
  * @param int * curr takes a pointer to an iterator which is the current index in our Array of queues
  * 
  */
+
+
+threadQ * get_next_executable(int * curr)
+{
+	threadQ non_empty = _scan_non_empty(curr);
+	if (non_empty -> threshold == 0)
+	{
+		non_empty -> threshold = MAXTHD - *curr;
+	}
+	*curr += 1;
+	if (*curr == LEVELS - 1)
+	{
+		return NULL;
+	}
+	non_empty = _scan_non_empty(curr);
+}
+
+
 threadQ * _scan_non_empty(int * curr){
     threadQ* threadq = NULL;
     do
@@ -100,7 +97,6 @@ threadQ * _scan_non_empty(int * curr){
     }
     while(threadq == NULL || (threadq!=NULL && threadq->front == NULL));
     return threadq;
-
 }
 
 
@@ -130,11 +126,14 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 		mutex ->waitQ -> size ++;
 	}
 }
-threadNode * mutex_dequeue(my_pthread_mutex_t *mutex){
-	if(mutex->waitQ ->size == 0){
-
+threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
+{
+	if(mutex->waitQ ->size == 0)
+	{
 		return NULL;
-	} else{
+	} 
+	else
+	{
 			threadNode * ptr = mutex->waitQ->front;
 			mutex->waitQ->front = mutex->waitQ->front->next;
 			mutex->waitQ->size --;

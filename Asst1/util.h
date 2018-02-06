@@ -61,6 +61,7 @@ typedef struct Scheduler{
  
 
 void enqueue(threadNode *);
+threadQ * get_next_executable(int * curr);
 int init;
 Scheduler* scheduler;
 threadQ* _scan_non_empty(int*curr);
