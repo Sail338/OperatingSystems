@@ -14,10 +14,12 @@
 #include <errno.h>
 #define MEM 64000
 int tCount=0;
-void sig_hanlder(){
-	printf("%s","I am a sig handler");
 
-
+//this is scheduled to run every 25 milliseconds
+void sig_handler()
+{
+	scheduler -> current -> numSlices -= 1;
+	threadNode * newNode = dequeue(&(scheduler->current->qlevel));
 }
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
 	ucontext_t newthread;
@@ -27,6 +29,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> spawnTime = spawnTime; 
 	node -> numSlices = numSlices;
 	node -> qlevel = level;
+	node -> yield = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -104,10 +107,11 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	return 0;
 };
 
-
+//YIELD WILL NUDGE THE SIGNAL HANDLER TO STEP DOWN THE CURRENT THREAD
+//THE NEXT TIME IT GOES OFF
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
-
+	scheduler->current->yield = true;
 	return 0;
 };
 
