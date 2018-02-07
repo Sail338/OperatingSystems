@@ -28,7 +28,8 @@ void enqueue(threadNode *Node){
         
     } 
     //front is empty similar if the list has not been malloced yet
-    else if (threadq -> front == NULL) {
+    else if (threadq -> front == NULL) 
+	{
         thread_q_init(Node,threadq);
         threadq ->size ++;
     } 
@@ -39,25 +40,26 @@ void enqueue(threadNode *Node){
         threadq->rear = Node;
         threadq -> rear ->next = NULL;
         threadq ->size ++;
-    }
-}
+    	if (threadq -> threshold == 0)
+		{
 
+		}
+	}
+}
+//i don't know if you even have to do anything special if you hit threshold and run out of nodes at the same time - 
+//when you enqueue, the threshold is still zero. next time you come around you skip it, as you should, and reset the threshold to max
 
 threadNode* dequeue () 
 {
     int *curr;
 	*curr = 0;
-    threadQ* threadq = NULL;
-    threadq = get_next_executable(curr);
-    //Find the first threadQ that is non_empty
+    threadQ* threadq = get_next_executable(curr);
     //If NULL is returned, this means we either have nothing to Dequeue or and error has happened
     //Error could be you dequeued before you enqueued (ya idoit)
     if (threadq == NULL)
     {
         return NULL;
-    }
-    
-	threadq->threshold -= 1;
+    } 
     threadNode * tNode = threadq -> front;
     threadq -> front = threadq ->front->next;
     return tNode;
@@ -75,27 +77,31 @@ threadQ * get_next_executable(int * curr)
 	if (non_empty -> threshold == 0)
 	{
 		non_empty -> threshold = MAXTHD - *curr;
+		*curr += 1;
 	}
-	*curr += 1;
+	
 	if (*curr == LEVELS - 1)
 	{
 		return NULL;
 	}
 	non_empty = _scan_non_empty(curr);
+	non_empty->threshold -= 1;
+	return non_empty;
 }
 
-
-threadQ * _scan_non_empty(int * curr){
+threadQ * _scan_non_empty(int * curr)
+{
     threadQ* threadq = NULL;
     do
     {
         threadq = scheduler->tq[*curr];
         *curr = *curr +1;
-        if(*curr >= LEVELS){
+        if(*curr >= LEVELS)
+		{
             return NULL;
         }
     }
-    while(threadq == NULL || (threadq!=NULL && threadq->front == NULL));
+    while(threadq == NULL || (threadq->front == NULL));
     return threadq;
 }
 
