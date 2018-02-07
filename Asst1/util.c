@@ -80,7 +80,7 @@ threadQ * get_next_executable(int * curr)
 		*curr += 1;
 	}
 	
-	if (*curr == LEVELS - 1)
+	if (*curr == LEVELS)
 	{
 		return NULL;
 	}
