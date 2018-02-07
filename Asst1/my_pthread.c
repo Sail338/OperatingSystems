@@ -13,7 +13,7 @@
 #include <string.h>
 #include <errno.h>
 #define MEM 64000
-
+int tCount=0;
 void sig_hanlder(){
 	printf("%s","I am a sig handler");
 
@@ -22,7 +22,7 @@ void sig_hanlder(){
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
 	ucontext_t newthread;
 	node = (threadNode *)malloc(sizeof(threadNode));
-	node -> tid = (void*)&node;
+	node -> tid = tCount++;
 	node -> next = NULL;
 	node -> spawnTime = spawnTime; 
 	node -> numSlices = numSlices;
@@ -35,7 +35,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	//only create a new context if we pass in a new parameter
 	if(function != NULL){
 
-		*thread = node ->tid;
+		thread = node;
 	//we dont want anything to happen after thread is done
 		newthread . uc_link = 0;
 		newthread. uc_stack.ss_sp=malloc(MEM);
