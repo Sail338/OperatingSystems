@@ -51,10 +51,10 @@ void enqueue(threadNode *Node){
 //i don't know if you even have to do anything special if you hit threshold and run out of nodes at the same time - 
 //when you enqueue, the threshold is still zero. next time you come around you skip it, as you should, and reset the threshold to max
 
-threadNode* dequeue () 
+//NOTE: DEQUEUE ONLY AFTER YOU DEMOTE THE CURRENT NODE
+//ALSO, CURR = QLEVEL OF CURRENT NODE
+threadNode* dequeue (int * curr) 
 {
-    int *curr;
-	*curr = 0;
     threadQ* threadq = get_next_executable(curr);
     //If NULL is returned, this means we either have nothing to Dequeue or and error has happened
     //Error could be you dequeued before you enqueued (ya idoit)
