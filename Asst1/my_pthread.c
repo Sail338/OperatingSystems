@@ -4,14 +4,99 @@
 
 //name: SaraAnn Stanway, Sam Azouzi, Srihari Shankar
 //iLab Server: template
-
 #include "my_pthread_t.h"
+#include <sys/time.h>
+#include <ucontext.h>
+#include <stdio.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#define MEM 64000
+
+void sig_hanlder(){
+	printf("%s","I am a sig handler");
+
+
+}
+threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
+	ucontext_t newthread;
+	node = (threadNode *)malloc(sizeof(threadNode));
+	node -> tid = &node;
+
+	node -> next = NULL;
+	node -> spawnTime = spawnTime; 
+	node -> numSlices = numSlices;
+	node -> qlevel = level;
+	/**
+	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
+	 * **/
+
+	getcontext(&newthread);
+	if(function != NULL){
+
+		*thread = node ->tid;
+	//we dont want anything to happen after thread is done
+		newthread . uc_link = 0;
+		newthread. uc_stack.ss_sp=malloc(MEM);
+		newthread. uc_stack.ss_size=MEM;
+ 		newthread. uc_stack.ss_flags=0;
+		makecontext(&newthread, (void*)(function), 1,arg);
+	}
+	
+	//node ->thread = malloc(sizeof(ucontext_t*));
+	
+    node->thread = newthread;
+	return node;
+	
+}
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
-	
+	/**
+	 *
+	 *Initlaize scheduler
+	 **/
+	ucontext_t curr;
+	if(init == 0){
+		scheduler = (Scheduler *)malloc(sizeof(Scheduler));
+		scheduler->tq = (threadQ **)malloc(sizeof(threadQ *) * LEVELS);
+		int i;
+		for(i=0;i<LEVELS;i++){
+
+			scheduler->tq[i] = NULL;
+		}
+		scheduler -> current = NULL;
+		scheduler -> no_threads = 1;
+		memset(&(scheduler->sa),0,sizeof(scheduler->sa));
+		scheduler ->sa.sa_handler = &sig_hanlder;
+		sigaction(SIGVTALRM,&scheduler->sa,NULL);
+		scheduler->timer.it_value.tv_sec = 0;
+		scheduler -> timer.it_value.tv_usec = 25000;
+		scheduler ->timer.it_interval.tv_sec = 0;
+		scheduler ->timer.it_interval.tv_usec = 25000;
+		scheduler->current = NULL;
+		scheduler->current = createNewNode(scheduler->current,0,25,(double)time(NULL),NULL,NULL,NULL);
+			
+		
+	}
+	//create a threadNode
+	threadNode * node = NULL;
+	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
+	swapcontext(&(scheduler->current->thread),&(node->thread));	
+	printf("HEY I DID I THING\n");
+	/**
+	 *
+	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
+	 * **/
+	if(init == 0){
+			init = 1;
+			//setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
+			//start timer
+			//
+		}
 	return 0;
 };
+
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {

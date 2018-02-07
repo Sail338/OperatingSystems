@@ -9,8 +9,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
+#include <signal.h>
 #define LEVELS 10
 #define MULTIPLIER 2
+//Has to keep in mind how many levels in the Scheduler
+#define MAXTHD 10
 /* define your data structures here: */
 typedef struct threadNode
 {
@@ -28,6 +32,7 @@ typedef struct threadQ{
     threadNode * front;
     threadNode * rear;
     int size;
+    int threshold;
     double min;
     double max;
     int upjmp;
@@ -49,13 +54,18 @@ typedef struct Scheduler{
     threadQ ** tq;
     threadNode* current;
     int no_threads;
+	struct sigaction sa;
+    struct itimerval timer;
+
 }Scheduler;
  
 
-
-Scheduler* scheduler;
 void enqueue(threadNode *);
+threadQ * get_next_executable(int * curr);
+int init;
+Scheduler* scheduler;
+threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
-threadNode* mutex_dequeue(my_pthread_mutex_t *):
-void _thread_q_init(threadNode *,threadQ* );
+threadNode* mutex_dequeue(my_pthread_mutex_t *);
+void thread_q_init(threadNode *,threadQ*);
 #endif
