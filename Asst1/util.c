@@ -14,7 +14,9 @@ void enqueue(threadNode *Node){
     //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
     if(threadq == NULL){
-        threadq = malloc(sizeof(threadQ));
+		threadq = malloc(sizeof(threadQ));
+		scheduler->tq[Node->qlevel] = threadq;	
+		//shceduler->tq[0]->fronto
         thread_q_init(Node,threadq);
         threadq ->size =1;
         if(Node->qlevel == 0){
