@@ -73,18 +73,34 @@ threadNode* dequeue ()
 
 threadQ * get_next_executable(int * curr)
 {
+	int * last;
+	//find first non empty threadQ
 	threadQ * non_empty = _scan_non_empty(curr);
+	//save the location of the first non empty queue in case of edge cases
+	*last = *curr;
+	//if it's already maxed out its threshold, set threshold back to max and find next non empty
 	if (non_empty -> threshold == 0)
 	{
 		non_empty -> threshold = MAXTHD - *curr;
 		*curr += 1;
 	}
-	
-	if (*curr == LEVELS)
-	{
-		return NULL;
-	}
 	non_empty = _scan_non_empty(curr);
+	//THIS IS FOR THE EDGE CASE THAT THERE WAS ONLY ONE NONEMPTY QUEUE, AND IT HAPPENED TO HAVE BEEN MAXED OUT
+	//if there are no other nonempty threadQs after the one we just had
+	if (non_empty == NULL)
+	{
+		//look for another nonempty starting from the beginning
+		non_empty = _scan_non_empty(last);
+		//set the threshold back to max, dequeue normally
+		if (non_empty -> threshold == 0)
+		{
+			non_empty -> threshold = MAXTHD - *curr;
+		}
+	}
+	if (non_empty == NULL)
+		{
+			return NULL;
+		}
 	non_empty->threshold -= 1;
 	return non_empty;
 }
