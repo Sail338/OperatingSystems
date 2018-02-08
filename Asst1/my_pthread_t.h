@@ -32,6 +32,9 @@ typedef struct threadControlBlock {
 
 
 /* Function Declarations: */
+void normal_sig_handler(int);
+
+void yeild_sig_handler(int);
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg);

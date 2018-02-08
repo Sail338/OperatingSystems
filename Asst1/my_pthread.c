@@ -15,12 +15,6 @@
 #define MEM 64000
 int tCount=0;
 
-//this is scheduled to run every 25 milliseconds
-
-void normal_sig_handler()
-{
-	
-}
 
 void yield_sig_handler(int signum)
 {
@@ -28,21 +22,32 @@ void yield_sig_handler(int signum)
   setitimer(ITIMER_VIRTUAL,0,NULL);
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
   threadNode * temp = scheduler -> current;
-  
-  threadNode * dequeuedNode = NULL;
-  //enqueue the current Node back to the MLQ
-  enqueue(scheduler -> current);
-  //DEQUEUE a Node
-  dequeuedNode = dequeue((scheduler -> current->qlevel));
-  //set the current equal to the dqed Node
-  scheduler -> current = dequeuedNode;
-  //reset the timer
-  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
- //swap th contexts 
- swapcontext(&(temp->thread),&(scheduler -> current->thread));
-  
+  if(temp == NULL){
+    temp = dequeue(0);
+    scheduler->current = temp;
+    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+    setcontext(&(scheduler->current->thread));
+  }
+  else{
+    threadNode * dequeuedNode = NULL;
+    //enqueue the current Node back to the MLQ
+    enqueue(scheduler -> current);
+    //DEQUEUE a Node
+    dequeuedNode = dequeue((scheduler -> current->qlevel));
+    //set the current equal to the dqed Node
+    scheduler -> current = dequeuedNode;
+    //reset the timer
+    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+    //swap th contexts 
+    swapcontext(&(temp->thread),&(scheduler -> current->thread));
+  }
 }
 
+//this is scheduled to run every 25 milliseconds
+void normal_sig_handler(int signum)
+{
+    yield_sig_handler(3);
+}
 
 
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
@@ -54,7 +59,6 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> spawnTime = spawnTime; 
 	node -> numSlices = numSlices;
 	node -> qlevel = level;
-	node -> yield = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -100,7 +104,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler ->sa.sa_handler = &normal_sig_handler;
 		sigaction(SIGVTALRM,&scheduler->sa,NULL);
 		scheduler->timer.it_value.tv_sec = 0;
-		scheduler -> timer.it_value.tv_usec = 25000;
+		scheduler->timer.it_value.tv_usec = 25000;
 		scheduler->current = NULL;
 		scheduler->current = createNewNode(scheduler->current,0,25,(double)time(NULL),NULL,NULL,NULL);
 			
@@ -110,14 +114,13 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	threadNode * node = NULL;
 	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
 	enqueue(node);
-	my_pthread_yield();
 	/**
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
 	 * **/
 	if(init == 0){
 			init = 1;
-			//setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
+		    setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
 			//start timer
 			//
 		}
@@ -128,6 +131,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	if(errno !=0){
 		return -1;
 	}
+    my_pthread_yield();
 	return 0;
 };
 
@@ -136,7 +140,6 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() 
 {
-	printf("called yield");	
 	//calls signal handler
 	signal(SIGUSR1, yield_sig_handler);
 	raise(SIGUSR1);
@@ -145,11 +148,12 @@ int my_pthread_yield()
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
-    theardNode * toBeDeleted = scheduler->current;
+    threadNode * toBeDeleted = NULL;
+    toBeDeleted = scheduler->current;
     //1. Deal with Waiting
     //2. Call yeild
     //Yield can assume empty current
-    free(&toBeDeleted->thread);
+    free(toBeDeleted->thread.uc_stack.ss_sp);
     scheduler->current = NULL;
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
@@ -158,8 +162,8 @@ void my_pthread_exit(void *value_ptr) {
             toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
         }
     }
-    yield()
-};
+    my_pthread_yield();
+}
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
@@ -173,13 +177,13 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }
         else{
             threadNode * front = thJ->waitingNodes;
-            while(front->next != NULL){front=front->next}
+            while(front->next != NULL){front=front->next;}
             front->next = scheduler->current;
             temp = front->next;
         }
         scheduler->current = thJ;
         getcontext(&(temp->thread));
-        yield();
+        my_pthread_yield();
         return 0;
     }
     
