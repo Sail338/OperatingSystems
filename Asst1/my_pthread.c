@@ -24,17 +24,25 @@ void normal_sig_handler()
 
 void yield_sig_handler(int signum)
 {
-  printf("Called yield signal\n");
+	// RESET the timer to 0
   setitimer(ITIMER_VIRTUAL,0,NULL);
+  //set a temp node to current which is context that we ARE GOING TO SWAP OUT
   threadNode * temp = scheduler -> current;
+  
   threadNode * dequeuedNode = NULL;
-  dequeuedNode = dequeue(&(scheduler -> current->qlevel));
+  //enqueue the current Node back to the MLQ
   enqueue(scheduler -> current);
+  //DEQUEUE a Node
+  dequeuedNode = dequeue((scheduler -> current->qlevel));
+  //set the current equal to the dqed Node
   scheduler -> current = dequeuedNode;
+  //reset the timer
   setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
- // swapcontext(&(temp->thread),&(scheduler -> current->thread));
+ //swap th contexts 
+ swapcontext(&(temp->thread),&(scheduler -> current->thread));
   
 }
+
 
 
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
@@ -130,8 +138,8 @@ int my_pthread_yield()
 {
 	printf("called yield");	
 	//calls signal handler
-	signal(SIGINT, yield_sig_handler);
-	raise(SIGINT);
+	signal(SIGUSR1, yield_sig_handler);
+	raise(SIGUSR1);
 	return 0;
 };
 
