@@ -37,8 +37,6 @@ typedef struct threadQ{
     int threshold;
     double min;
     double max;
-    int upjmp;
-    int dwnjmp;
 } threadQ;
 
 //mutex struct definition

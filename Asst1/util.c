@@ -53,9 +53,9 @@ void enqueue(threadNode *Node){
 
 //NOTE: DEQUEUE ONLY AFTER YOU DEMOTE THE CURRENT NODE
 //ALSO, CURR = QLEVEL OF CURRENT NODE
-threadNode* dequeue (int * curr) 
+threadNode* dequeue (int  curr) 
 {
-    threadQ* threadq = get_next_executable(curr);
+    threadQ* threadq = get_next_executable(&curr);
     //If NULL is returned, this means we either have nothing to Dequeue or and error has happened
     //Error could be you dequeued before you enqueued (ya idoit)
     if (threadq == NULL)
@@ -75,11 +75,11 @@ threadNode* dequeue (int * curr)
 
 threadQ * get_next_executable(int * curr)
 {
-	int * last;
+	int  last;
 	//find first non empty threadQ
 	threadQ * non_empty = _scan_non_empty(curr);
 	//save the location of the first non empty queue in case of edge cases
-	*last = *curr;
+	last = *curr;
 	//if it's already maxed out its threshold, set threshold back to max and find next non empty
 	if (non_empty -> threshold == 0)
 	{
@@ -92,7 +92,7 @@ threadQ * get_next_executable(int * curr)
 	if (non_empty == NULL)
 	{
 		//look for another nonempty starting from the beginning
-		non_empty = _scan_non_empty(last);
+		non_empty = _scan_non_empty(&last);
 		//set the threshold back to max, dequeue normally
 		if (non_empty -> threshold == 0)
 		{
@@ -108,18 +108,19 @@ threadQ * get_next_executable(int * curr)
 }
 
 threadQ * _scan_non_empty(int * curr)
+
 {
-    threadQ* threadq = NULL;
-    do
-    {
+    threadQ* threadq = scheduler->tq[*curr];
+	while(threadq == NULL || (threadq ->front == NULL)){
+		
         threadq = scheduler->tq[*curr];
         *curr = *curr +1;
         if(*curr >= LEVELS)
 		{
             return NULL;
         }
-    }
-    while(threadq == NULL || (threadq->front == NULL));
+
+	}
     return threadq;
 }
 
