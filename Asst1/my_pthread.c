@@ -16,12 +16,19 @@
 int tCount=0;
 
 //this is scheduled to run every 25 milliseconds
-void sig_handler()
+void normal_sig_handler()
 {
-	scheduler -> current -> numSlices -= 1;
-	threadNode * newNode = dequeue(&(scheduler->current->qlevel));
+	
 }
-threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
+
+void yield_sig_handler()
+{
+}
+
+
+
+threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
+{
 	ucontext_t newthread;
 	node = (threadNode *)malloc(sizeof(threadNode));
 	node -> tid = tCount++;
@@ -110,8 +117,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 //YIELD WILL NUDGE THE SIGNAL HANDLER TO STEP DOWN THE CURRENT THREAD
 //THE NEXT TIME IT GOES OFF
 /* give CPU pocession to other user level threads voluntarily */
-int my_pthread_yield() {
-	scheduler->current->yield = true;
+int my_pthread_yield() 
+{
+	//calls signal handler
 	return 0;
 };
 
