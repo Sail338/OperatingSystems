@@ -16,15 +16,25 @@
 int tCount=0;
 
 //this is scheduled to run every 25 milliseconds
+
 void normal_sig_handler()
 {
 	
 }
 
-void yield_sig_handler()
+void yield_sig_handler(int signum)
 {
+  printf("Called yield signal\n");
+  setitimer(ITIMER_VIRTUAL,0,NULL);
+  threadNode * temp = scheduler -> current;
+  threadNode * dequeuedNode = NULL;
+  dequeuedNode = dequeue(&(scheduler -> current->qlevel));
+  enqueue(scheduler -> current);
+  scheduler -> current = dequeuedNode;
+  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+ // swapcontext(&(temp->thread),&(scheduler -> current->thread));
+  
 }
-
 
 
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
@@ -79,7 +89,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler -> no_threads = 1;
 		memset(&(scheduler->sa),0,sizeof(scheduler->sa));
 		//memset fails
-		scheduler ->sa.sa_handler = &sig_hanlder;
+		scheduler ->sa.sa_handler = &normal_sig_handler;
 		sigaction(SIGVTALRM,&scheduler->sa,NULL);
 		scheduler->timer.it_value.tv_sec = 0;
 		scheduler -> timer.it_value.tv_usec = 25000;
@@ -92,8 +102,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	threadNode * node = NULL;
 	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
 	enqueue(node);
-	swapcontext(&(scheduler->current->thread),&(node->thread));	
-	printf("Swapped back to main\n");
+	my_pthread_yield();
 	/**
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
@@ -119,7 +128,10 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() 
 {
+	printf("called yield");	
 	//calls signal handler
+	signal(SIGINT, yield_sig_handler);
+	raise(SIGINT);
 	return 0;
 };
 
