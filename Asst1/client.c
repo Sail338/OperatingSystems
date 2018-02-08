@@ -5,7 +5,7 @@ int func(int x){
 	printf("HELLO WORLD\n");
 	printf("KEK\n");
 	printf("x is %d\n",x);
-	swapcontext(&(scheduler->tq[0]->front->thread),&(scheduler->current->thread));
+	//swapcontext(&(scheduler->tq[0]->front->thread),&(scheduler->current->thread));
 	return  0;
 
 }
@@ -21,6 +21,6 @@ int main(){
 	   arg.arg1 = 5;
    	    arg . arg2 = 6;	   
 		my_pthread_create(&t,NULL,(void*)func,(void *)5);
-		printf("Back in main bois");
+	//	printf("Back in main bois");
 }
 
