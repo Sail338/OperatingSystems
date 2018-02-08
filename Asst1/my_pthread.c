@@ -113,11 +113,44 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+    theardNode * toBeDeleted = scheduler->current;
+    //1. Deal with Waiting
+    //2. Call yeild
+    //Yield can assume empty current
+    free(&toBeDeleted->thread);
+    scheduler->current = NULL;
+    toBeDeleted->term = 1;
+    if(toBeDeleted->waitingNodes != NULL){
+        while(toBeDeleted->waitingNodes != NULL){
+            enqueue(toBeDeleted->waitingNodes);
+            toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
+        }
+    }
+    yield()
 };
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
-	return 0;
+    //We are going to change the current equal to the thread that is being waited on
+    threadNode * thJ = &thread;
+    threadNode * temp = NULL;
+    if(thJ->term != 1){
+        if(thJ->waitingNodes == NULL){
+            thJ->waitingNodes = scheduler->current;
+            temp = thJ->waitingNodes;
+        }
+        else{
+            threadNode * front = thJ->waitingNodes;
+            while(front->next != NULL){front=front->next}
+            front->next = scheduler->current;
+            temp = front->next;
+        }
+        scheduler->current = thJ;
+        getcontext(&(temp->thread));
+        yield();
+        return 0;
+    }
+    
 };
 
 /* initial the mutex lock */
