@@ -14,12 +14,39 @@
 #include <errno.h>
 #define MEM 64000
 int tCount=0;
-void sig_hanlder(){
-	printf("%s","I am a sig handler");
 
+//this is scheduled to run every 25 milliseconds
 
+void normal_sig_handler()
+{
+	
 }
-threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg){
+
+void yield_sig_handler(int signum)
+{
+	// RESET the timer to 0
+  setitimer(ITIMER_VIRTUAL,0,NULL);
+  //set a temp node to current which is context that we ARE GOING TO SWAP OUT
+  threadNode * temp = scheduler -> current;
+  
+  threadNode * dequeuedNode = NULL;
+  //enqueue the current Node back to the MLQ
+  enqueue(scheduler -> current);
+  //DEQUEUE a Node
+  dequeuedNode = dequeue((scheduler -> current->qlevel));
+  //set the current equal to the dqed Node
+  scheduler -> current = dequeuedNode;
+  //reset the timer
+  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+ //swap th contexts 
+ swapcontext(&(temp->thread),&(scheduler -> current->thread));
+  
+}
+
+
+
+threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
+{
 	ucontext_t newthread;
 	node = (threadNode *)malloc(sizeof(threadNode));
 	node -> tid = tCount++;
@@ -27,6 +54,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> spawnTime = spawnTime; 
 	node -> numSlices = numSlices;
 	node -> qlevel = level;
+	node -> yield = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -69,7 +97,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler -> no_threads = 1;
 		memset(&(scheduler->sa),0,sizeof(scheduler->sa));
 		//memset fails
-		scheduler ->sa.sa_handler = &sig_hanlder;
+		scheduler ->sa.sa_handler = &normal_sig_handler;
 		sigaction(SIGVTALRM,&scheduler->sa,NULL);
 		scheduler->timer.it_value.tv_sec = 0;
 		scheduler -> timer.it_value.tv_usec = 25000;
@@ -82,8 +110,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	threadNode * node = NULL;
 	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
 	enqueue(node);
-	swapcontext(&(scheduler->current->thread),&(node->thread));	
-	printf("Swapped back to main\n");
+	my_pthread_yield();
 	/**
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
@@ -104,10 +131,15 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	return 0;
 };
 
-
+//YIELD WILL NUDGE THE SIGNAL HANDLER TO STEP DOWN THE CURRENT THREAD
+//THE NEXT TIME IT GOES OFF
 /* give CPU pocession to other user level threads voluntarily */
-int my_pthread_yield() {
-
+int my_pthread_yield() 
+{
+	printf("called yield");	
+	//calls signal handler
+	signal(SIGUSR1, yield_sig_handler);
+	raise(SIGUSR1);
 	return 0;
 };
 

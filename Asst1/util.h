@@ -26,6 +26,7 @@ typedef struct threadNode
 	//for prioritization of old threads. when something gets pushed down in the MLPQ, increase this
 	//so that when it comes back to the top after a while, it gets to run for longer
 	int numSlices;
+	bool yield;
 } threadNode;
 
 typedef struct threadQ{
@@ -35,8 +36,6 @@ typedef struct threadQ{
     int threshold;
     double min;
     double max;
-    int upjmp;
-    int dwnjmp;
 } threadQ;
 
 //mutex struct definition
