@@ -72,7 +72,6 @@ threadNode* dequeue (int  curr)
  * 
  */
 
-
 threadQ * get_next_executable(int * curr)
 {
 	int  last;
@@ -148,6 +147,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 		mutex ->waitQ -> size ++;
 	}
 }
+
 threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 {
 	if(mutex->waitQ ->size == 0)
@@ -164,8 +164,8 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 
 }
 
-
-void  thread_q_init(threadNode * tNode,threadQ* threadq){
+void  thread_q_init(threadNode * tNode,threadQ* threadq)
+{
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;

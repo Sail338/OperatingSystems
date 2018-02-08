@@ -17,9 +17,47 @@ int tCount=0;
 
 //this is scheduled to run every 25 milliseconds
 
+void maintenance_cycle()
+{
+	threadQ * promoQ = scheduler->tq[LEVELS-1];
+	threadNode * promoNode;
+	if (promoQ != NULL)
+	{
+		promoNode = promoQ -> front;
+	
+	if (promoNode != NULL)
+	{
+			//another null check here
+		threadNode * topNode = scheduler->tq[0]->rear;
+		if (topNode == NULL)
+		{
+			scheduler->tq[0] ->front = promoNode;
+		}
+		else
+		{
+			topNode -> next = promoNode;
+		}
+		scheduler->tq[LEVELS-1] = NULL;
+	}
+	}
+}
+
 void normal_sig_handler()
 {
-	
+	setitimer(ITIMER_VIRTUAL, 0, NULL);
+	//PUT IN CHECK IN CASE IN LAST LEVEL
+	if (scheduler->current->numSlices == 0)
+	{
+		int slices = scheduler->current->qlevel + 1;
+		scheduler->current->qlevel ++;
+		scheduler->current->numSlices = slices;
+	}
+	else
+	{
+		scheduler->current->numSlices --;
+	}
+	maintenance_cycle();
+	yield_sig_handler(3);
 }
 
 void yield_sig_handler(int signum)
@@ -42,8 +80,6 @@ void yield_sig_handler(int signum)
  swapcontext(&(temp->thread),&(scheduler -> current->thread));
   
 }
-
-
 
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
 {

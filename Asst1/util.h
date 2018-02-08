@@ -29,7 +29,8 @@ typedef struct threadNode
 	bool yield;
 } threadNode;
 
-typedef struct threadQ{
+typedef struct threadQ
+{
     threadNode * front;
     threadNode * rear;
     int size;
@@ -49,7 +50,8 @@ typedef struct my_pthread_mutex_t
 void mutex_enqueue(threadNode*, my_pthread_mutex_t *);
 
 
-typedef struct Scheduler{
+typedef struct Scheduler
+{
     threadQ ** tq;
     threadNode* current;
     int no_threads;
