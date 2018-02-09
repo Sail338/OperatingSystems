@@ -14,6 +14,7 @@ int func(int x){
 }
 int func1(){
     printf("Currently in second thread\n");
+	my_pthread_yield();
 	int *x = malloc(sizeof(int));
 	*x = 9;
 	printf("prepare to exit on the right \n");
@@ -24,11 +25,13 @@ int func1(){
 
 int main(){
         my_pthread_t z;
+		printf("adress before create %x\n",&z);
         my_pthread_create(&z,NULL,(void*)func1,NULL);
+		printf("adress of thread after creation %x \n",&z);
+		printf("JOINED\n");
 		int *holder;
 		my_pthread_join(z,(void **)&holder);
 		printf("%d\n",*holder);
-        printf("HAAHAHAHAHAHAHA2\n");
 	//	printf("Back in main bois");
 }
 

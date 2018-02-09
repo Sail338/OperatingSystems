@@ -28,7 +28,7 @@ typedef struct threadNode
 	//so that when it comes back to the top after a while, it gets to run for longer
 	int numSlices;
 	void * return_value;
-    bool term;
+    int term;
 } threadNode;
 
 typedef struct threadQ{

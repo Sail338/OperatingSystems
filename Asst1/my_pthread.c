@@ -19,13 +19,13 @@ int tCount=0;
 void yield_sig_handler(int signum)
 {
 	// RESET the timer to 0
-  setitimer(ITIMER_VIRTUAL,0,NULL);
+//  setitimer(ITIMER_VIRTUAL,0,NULL);
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
   threadNode * temp = scheduler -> current;
   if(temp == NULL){
     temp = dequeue(0);
     scheduler->current = temp;
-    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+  //  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     setcontext(&(scheduler->current->thread));
   }
   else{
@@ -53,12 +53,15 @@ void normal_sig_handler(int signum)
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
 {
 	ucontext_t newthread;
+	//thread = malloc(sizeof(my_pthread_t));
 	node = (threadNode *)malloc(sizeof(threadNode));
 	node -> tid = tCount++;
 	node -> next = NULL;
 	node -> spawnTime = spawnTime; 
 	node -> numSlices = numSlices;
 	node -> qlevel = level;
+	node -> waitingNodes = NULL;
+	node -> term =0;	
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -66,14 +69,16 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	getcontext(&newthread);
 	//only create a new context if we pass in a new parameter
 	if(function != NULL){
-
+		
 		thread = node;
+		printf("address of thread in Pthread_create %x\n",thread);
 	//we dont want anything to happen after thread is done
 		newthread . uc_link = 0;
 		newthread. uc_stack.ss_sp=malloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
  		newthread. uc_stack.ss_flags=0;
 		makecontext(&newthread, (void*)(function), 1,arg);
+		
 	}
 	
 	//node ->thread = malloc(sizeof(ucontext_t*));
@@ -153,7 +158,7 @@ void my_pthread_exit(void *value_ptr) {
     //1. Deal with Waiting
     //2. Call yeild
     //Yield can assume empty current
-    free(toBeDeleted->thread.uc_stack.ss_sp);
+   // free(toBeDeleted->thread.uc_stack.ss_sp);
     scheduler->current = NULL;
 	printf("%x",&toBeDeleted);
     toBeDeleted->term = 1;
@@ -174,16 +179,21 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
+	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
-    threadNode * thJ = &thread;
+	printf("Calling Join\n");	
+    threadNode * thJ = scheduler->tq[0]->front;
+	
     threadNode * temp = NULL;
-
+		
     if(thJ->term != 1){
         if(thJ->waitingNodes == NULL){
+			printf("Got here\n");		
             thJ->waitingNodes = scheduler->current;
             temp = thJ->waitingNodes;
         }
         else{
+	
             threadNode * front = thJ->waitingNodes;
             while(front->next != NULL){front=front->next;}
             front->next = scheduler->current;
@@ -191,15 +201,19 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }
         scheduler->current = thJ;
         getcontext(&(temp->thread));
-
+		printf("I think we reached here\n");
         my_pthread_yield();
+		printf("I broke out of yield\n");
 	 	value_ptr = &(temp->return_value);
+			
+		printf("I finished setting ptr\n");	
         return 0;
     }
 	//TODO check if thread is already terminated
 	return -1;
     
 }
+
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
