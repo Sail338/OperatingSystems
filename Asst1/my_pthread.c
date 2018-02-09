@@ -33,13 +33,15 @@ void yield_sig_handler(int signum)
     //enqueue the current Node back to the MLQ
     enqueue(scheduler -> current);
     //DEQUEUE a Node
-    dequeuedNode = dequeue((scheduler -> current->qlevel));
+    dequeuedNode = dequeue((scheduler ->current->qlevel));
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     //reset the timer
  //   setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
-    //swap th contexts 
-    swapcontext(&(temp->thread),&(scheduler -> current->thread));
+    //swap th contexts
+    if(dequeuedNode != scheduler->current){
+        swapcontext(&(temp->thread),&(scheduler -> current->thread));
+    }
   }
 }
 
@@ -61,7 +63,8 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> numSlices = numSlices;
 	node -> qlevel = level;
 	node -> waitingNodes = NULL;
-	node -> term =0;	
+	node -> term =0;
+    node -> return_value = NULL;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -70,9 +73,10 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	//only create a new context if we pass in a new parameter
 	if(function != NULL){
 		
-		thread = node;
-		printf("address of thread in Pthread_create %x\n",thread);
-	//we dont want anything to happen after thread is done
+		*thread = node;
+        
+		printf("address of thread in Pthread_create %x\n",*thread);
+	    //we dont want anything to happen after thread is done
 		newthread . uc_link = 0;
 		newthread. uc_stack.ss_sp=malloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
@@ -118,6 +122,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	//create a threadNode
 	threadNode * node = NULL;
 	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
+    //thread = (my_pthread_t)node;
 	enqueue(node);
 	/**
 	 *
@@ -167,7 +172,6 @@ void my_pthread_exit(void *value_ptr) {
         while(toBeDeleted->waitingNodes != NULL){
 			printf("before setting ret val \n");
 			toBeDeleted -> return_value = value_ptr;
-		
             enqueue(toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
 		
@@ -181,9 +185,8 @@ void my_pthread_exit(void *value_ptr) {
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
-	printf("Calling Join\n");	
-    threadNode * thJ = scheduler->tq[0]->front;
-	
+    threadNode * thJ = thread;
+	printf("Address of waiting Nodes: %x\n",thJ->waitingNodes);
     threadNode * temp = NULL;
 		
     if(thJ->term != 1){
@@ -199,16 +202,21 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
             front->next = scheduler->current;
             temp = front->next;
         }
-        scheduler->current = thJ;
+        scheduler->current = dequeue(scheduler->current->qlevel);
+        if(scheduler->current == NULL){
+          return -1;       
+        }
         getcontext(&(temp->thread));
 		printf("I think we reached here\n");
+        printf("Address of Scheduler Current: %d\n",scheduler->current);
         my_pthread_yield();
 		printf("I broke out of yield\n");
 	 	value_ptr = &(temp->return_value);
-			
-		printf("I finished setting ptr\n");	
+	    printf("AFTER YIELD\n");	
+		printf("This is value in join: %d\n",(int**)value_ptr);	
         return 0;
     }
+    printf("Terminated Thread\n");
 	//TODO check if thread is already terminated
 	return -1;
     
