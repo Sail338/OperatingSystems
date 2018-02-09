@@ -29,6 +29,8 @@ typedef struct threadNode
 	int numSlices;
 	void * return_value;
     int term;
+	//flag to detect whether this tread joined another thread or not
+	bool did_join;
 } threadNode;
 
 typedef struct threadQ{

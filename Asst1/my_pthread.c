@@ -31,7 +31,9 @@ void yield_sig_handler(int signum)
   else{
     threadNode * dequeuedNode = NULL;
     //enqueue the current Node back to the MLQ
-    enqueue(scheduler -> current);
+	if(scheduler->current->did_join == false){
+    	enqueue(scheduler -> current);
+	}
     //DEQUEUE a Node
     dequeuedNode = dequeue((scheduler ->current->qlevel));
     //set the current equal to the dqed Node
@@ -39,9 +41,8 @@ void yield_sig_handler(int signum)
     //reset the timer
  //   setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     //swap th contexts
-    if(dequeuedNode != scheduler->current){
         swapcontext(&(temp->thread),&(scheduler -> current->thread));
-    }
+    
   }
 }
 
@@ -65,6 +66,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> waitingNodes = NULL;
 	node -> term =0;
     node -> return_value = NULL;
+	node->did_join = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -202,14 +204,17 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
             front->next = scheduler->current;
             temp = front->next;
         }
-        scheduler->current = dequeue(scheduler->current->qlevel);
+       /* scheduler->current = dequeue(scheduler->current->qlevel);
         if(scheduler->current == NULL){
           return -1;       
-        }
-        getcontext(&(temp->thread));
+        }*/
+		scheduler->current->did_join = true;
+       // getcontext(&(temp->thread));
 		printf("I think we reached here\n");
         printf("Address of Scheduler Current: %d\n",scheduler->current);
         my_pthread_yield();
+		//reset to did join back to false
+		scheduler->current->did_join = false;
 		printf("I broke out of yield\n");
 	 	value_ptr = &(temp->return_value);
 	    printf("AFTER YIELD\n");	
