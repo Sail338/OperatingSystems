@@ -10,7 +10,8 @@
  *
  **/
 
-void enqueue(threadNode *Node){
+void enqueue(threadNode *Node)
+{
     //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
     if(threadq == NULL){
@@ -108,7 +109,6 @@ threadQ * get_next_executable(int * curr)
 }
 
 threadQ * _scan_non_empty(int * curr)
-
 {
     threadQ* threadq = scheduler->tq[*curr];
 	while(threadq == NULL || (threadq ->front == NULL)){
@@ -148,7 +148,8 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 		mutex ->waitQ -> size ++;
 	}
 }
-threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
+
+threadNode * mutex_dequeue(my_pthread_mutex_t * mutex)
 {
 	if(mutex->waitQ ->size == 0)
 	{
@@ -164,8 +165,8 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 
 }
 
-
-void  thread_q_init(threadNode * tNode,threadQ* threadq){
+void  thread_q_init(threadNode * tNode,threadQ* threadq)
+{
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;

@@ -43,8 +43,6 @@ void yield_sig_handler(int signum)
   
 }
 
-
-
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
 {
 	ucontext_t newthread;
@@ -80,7 +78,8 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 }
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) 
+{
 	/**
 	 *
 	 *Initlaize scheduler
@@ -144,16 +143,19 @@ int my_pthread_yield()
 };
 
 /* terminate a thread */
-void my_pthread_exit(void *value_ptr) {
+void my_pthread_exit(void *value_ptr) 
+{
 };
 
 /* wait for thread termination */
-int my_pthread_join(my_pthread_t thread, void **value_ptr) {
+int my_pthread_join(my_pthread_t thread, void **value_ptr) 
+{
 	return 0;
 };
 
 /* initial the mutex lock */
-int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
+{
 	mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
@@ -163,21 +165,55 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 		return 0;
 	}
 	return -1;
-	//ask Franny about EBUSY
+	//TODO ask Franny about EBUSY
 };
 
 /* aquire the mutex lock */
-int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
+{
+	if(mutex -> isLocked == false)
+	{
+		mutex ->isLocked = true;
+	}
+	else
+	{
+		//save the context
+		//set scheduler context to null
+		//yield
+		mutex_enqueue(scheduler->current, mutex);
+		getcontext(&scheduler->current->thread);
+		scheduler->current = NULL;
+		my_pthread_yield();
+		return -1;
+	}
 	return 0;
 };
 
 /* release the mutex lock */
-int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex) 
+{
+	if (mutex -> isLocked == false)
+	{
+		return -1;
+	}
+	else
+	{
+		mutex -> isLocked = false;
+		if (mutex -> waitQ != NULL)
+		{
+			threadNode * curr = mutex_dequeue(mutex);
+			if (curr != NULL)
+			{
+				enqueue(curr);
+			}
+		}
+	}
 	return 0;
 };
 
 /* destroy the mutex */
-int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) 
+{
 	return 0;
 };
 
