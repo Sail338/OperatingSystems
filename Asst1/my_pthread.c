@@ -213,9 +213,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		//reset to did join back to false
 		scheduler->current->did_join = false;
 		printf("I broke out of yield\n");
-	 	*value_ptr = *(void**)thread->return_value;
+	 	*value_ptr = thread->return_value;
 	    printf("AFTER YIELD\n");	
-		printf("This is value in join: %d\n",*value_ptr);	
+	//	printf("This is value in join: %d\n",*(int *)*value_ptr);	
         return 0;
     }
     printf("Terminated Thread\n");
