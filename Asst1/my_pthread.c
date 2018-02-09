@@ -16,7 +16,15 @@
 int tCount=0;
 
 //this is scheduled to run every 25 milliseconds
-
+/*	int slices = (scheduler->current->qlevel+1)%LEVELS;
+	int qlevel = (scheduler->current->qlevel+1)%LEVELS;
+	if (slices == 0)
+		slices ++;
+	scheduler->current->qlevel = qlevel;
+	
+	scheduler->current->numSlices = slices;
+*/	
+	
 void maintenance_cycle()
 {
 	threadQ * promoQ = scheduler->tq[LEVELS-1];
@@ -24,40 +32,44 @@ void maintenance_cycle()
 	if (promoQ != NULL)
 	{
 		promoNode = promoQ -> front;
-	
-	if (promoNode != NULL)
-	{
-			//another null check here
-		threadNode * topNode = scheduler->tq[0]->rear;
-		if (topNode == NULL)
+		if (promoNode != NULL)
 		{
-			scheduler->tq[0] ->front = promoNode;
-		}
-		else
-		{
-			topNode -> next = promoNode;
-		}
-		scheduler->tq[LEVELS-1] = NULL;
-	}
+			threadNode * ptr = promoNode;
+			while (ptr != NULL)
+			{
+				ptr -> numSlices = 1;
+			}
+			enqueue(promoNode);
+			scheduler->tq[0]->rear = promoQ -> rear;
+		}	
+		scheduler->tq[LEVELS-1]->front = NULL;
+		scheduler->tq[LEVELS-1]->rear = NULL;	
 	}
 }
 
 void normal_sig_handler()
 {
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
-	//PUT IN CHECK IN CASE IN LAST LEVEL
-	if (scheduler->current->numSlices == 0)
+	threadNode * curr = scheduler->current;
+	curr->numSlices --;
+	if (curr->numSlices == 0)
 	{
-		int slices = scheduler->current->qlevel + 1;
-		scheduler->current->qlevel ++;
-		scheduler->current->numSlices = slices;
-	}
-	else
-	{
-		scheduler->current->numSlices --;
+		//IS THIS RIGHT? (i think it's right)
+		if (curr->qlevel == LEVELS-1)
+		{
+			curr->qlevel=0;
+			curr->numSlices = 1;
+			enqueue(curr);
+		}
+		else
+		{
+			curr->qlevel ++;
+			curr->numSlices = scheduler->current->qlevel;
+		}
 	}
 	maintenance_cycle();
 	yield_sig_handler(3);
+	//restart the timer?I
 }
 
 void yield_sig_handler(int signum)

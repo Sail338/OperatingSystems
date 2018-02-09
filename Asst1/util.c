@@ -10,10 +10,12 @@
  *
  **/
 
-void enqueue(threadNode *Node){
+void enqueue(threadNode *Node)
+{
     //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
-    if(threadq == NULL){
+    if(threadq == NULL)
+	{
 		threadq = malloc(sizeof(threadQ));
 		scheduler->tq[Node->qlevel] = threadq;	
 		//shceduler->tq[0]->fronto
@@ -44,7 +46,7 @@ void enqueue(threadNode *Node){
         threadq ->size ++;
     	if (threadq -> threshold == 0)
 		{
-
+			//was something supposed to go here??
 		}
 	}
 }
