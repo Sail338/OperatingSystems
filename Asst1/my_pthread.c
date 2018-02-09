@@ -37,7 +37,7 @@ void yield_sig_handler(int signum)
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     //reset the timer
-    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+ //   setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     //swap th contexts 
     swapcontext(&(temp->thread),&(scheduler -> current->thread));
   }
@@ -46,7 +46,7 @@ void yield_sig_handler(int signum)
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
-    yield_sig_handler(3);
+  //  yield_sig_handler(3);
 }
 
 
@@ -120,7 +120,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	 * **/
 	if(init == 0){
 			init = 1;
-		    setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
+		   // setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
 			//start timer
 			//
 		}
@@ -155,12 +155,19 @@ void my_pthread_exit(void *value_ptr) {
     //Yield can assume empty current
     free(toBeDeleted->thread.uc_stack.ss_sp);
     scheduler->current = NULL;
+	printf("%x",&toBeDeleted);
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
+		printf("reached the if\n");
         while(toBeDeleted->waitingNodes != NULL){
+			printf("before setting ret val \n");
+			toBeDeleted -> return_value = value_ptr;
+		
             enqueue(toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
+		
         }
+		printf("Completed Exit \n");
     }
     my_pthread_yield();
 }
@@ -170,6 +177,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     //We are going to change the current equal to the thread that is being waited on
     threadNode * thJ = &thread;
     threadNode * temp = NULL;
+
     if(thJ->term != 1){
         if(thJ->waitingNodes == NULL){
             thJ->waitingNodes = scheduler->current;
@@ -183,11 +191,15 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }
         scheduler->current = thJ;
         getcontext(&(temp->thread));
+
         my_pthread_yield();
+	 	value_ptr = &(temp->return_value);
         return 0;
     }
+	//TODO check if thread is already terminated
+	return -1;
     
-};
+}
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
