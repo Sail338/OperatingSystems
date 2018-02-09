@@ -167,12 +167,9 @@ void my_pthread_exit(void *value_ptr) {
     //Yield can assume empty current
    // free(toBeDeleted->thread.uc_stack.ss_sp);
     scheduler->current = NULL;
-	printf("%x",&toBeDeleted);
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
-		printf("reached the if\n");
         while(toBeDeleted->waitingNodes != NULL){
-			printf("before setting ret val \n");
 			toBeDeleted -> return_value = value_ptr;
             enqueue(toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
@@ -216,9 +213,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		//reset to did join back to false
 		scheduler->current->did_join = false;
 		printf("I broke out of yield\n");
-	 	value_ptr = &(temp->return_value);
+	 	value_ptr = &(thread->return_value);
 	    printf("AFTER YIELD\n");	
-		printf("This is value in join: %d\n",(int**)value_ptr);	
+		printf("This is value in join: %d\n",**(int **)value_ptr);	
         return 0;
     }
     printf("Terminated Thread\n");
