@@ -39,8 +39,9 @@ void enqueue(threadNode *Node){
     else {
         threadq ->rear->next =(threadNode *) malloc(sizeof(threadNode));
         threadq ->rear ->next = Node;
+        Node->next = NULL; //ADDED: id=1
         threadq->rear = Node;
-        threadq -> rear ->next = NULL;
+        //threadq -> rear ->next = NULL; REMOVED: id=1
         threadq ->size ++;
     	if (threadq -> threshold == 0)
 		{
@@ -63,7 +64,9 @@ threadNode* dequeue (int  curr)
         return NULL;
     } 
     threadNode * tNode = threadq -> front;
+    threadq->size--;
     threadq -> front = threadq ->front->next;
+    tNode->next = NULL;
     return tNode;
 }
 /**

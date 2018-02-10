@@ -16,10 +16,45 @@
 int tCount=0;
 
 
+
+void * wrapper_function((void*)(*start)(void*),void*args){
+    start(args);
+    my_pthread_exit(NULL);
+}
+
+
+
+
+void schedulerString(){
+    printf("Current Context Address %x\n",&(scheduler->current));
+    //Print out each Queue
+    int x;
+    for(x = 0; x < LEVELS; x++){
+        if(scheduler->tq[x] == NULL){
+            break;
+        }
+        threadNode * ptr = scheduler->tq[x]->front;
+        printf("Queue %d:\nSIZE:%d\t\n",x,scheduler->tq[x]->size);
+        sleep(1);
+        int k = 0;
+        while(ptr != NULL){
+            printf("%x\t",ptr);
+            if(k > 5){
+                break;
+            }
+            ptr = ptr->next;
+            k++;
+        }
+        printf("NULL\n\n");
+    }
+}
+
+
 void yield_sig_handler(int signum)
 {
 	// RESET the timer to 0
    setitimer(ITIMER_VIRTUAL,0,NULL);
+   //schedulerString();
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
   threadNode * temp = scheduler -> current;
   if(temp == NULL){
@@ -38,6 +73,7 @@ void yield_sig_handler(int signum)
     dequeuedNode = dequeue((scheduler ->current->qlevel));
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
+    scheduler->current->next = NULL;
     //reset the timer
     setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     //swap th contexts
@@ -49,7 +85,6 @@ void yield_sig_handler(int signum)
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
-   printf("Did I get here?\n");
    yield_sig_handler(3);
 }
 
@@ -83,7 +118,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 		newthread. uc_stack.ss_sp=malloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
  		newthread. uc_stack.ss_flags=0;
-		makecontext(&newthread, (void*)(function), 1,arg);
+		makecontext(&newthread, (void*)(*wrapper_function), 2,(void*)(*function)(void*),args);
 		
 	}
 	
@@ -170,12 +205,18 @@ void my_pthread_exit(void *value_ptr) {
     scheduler->current = NULL;
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
-        while(toBeDeleted->waitingNodes != NULL){
-			toBeDeleted -> return_value = value_ptr;
+        toBeDeleted -> return_value = value_ptr;
+        threadNode * nextOne = toBeDeleted->waitingNodes;
+        while(nextOne != NULL){
+            printf("%x->",toBeDeleted->waitingNodes);
+            nextOne = toBeDeleted->waitingNodes->next;
+            //printf("%x\n",toBeDeleted->waitingNodes);
+            toBeDeleted->waitingNodes->next = NULL;
             enqueue(toBeDeleted->waitingNodes);
-            toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
+            toBeDeleted->waitingNodes = nextOne;
 		
         }
+        printf("\n");
     }
     my_pthread_yield();
 }
@@ -184,7 +225,6 @@ void my_pthread_exit(void *value_ptr) {
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
-    printf("Im in Join bois\n");
     threadNode * thJ = thread;
     threadNode * temp = NULL;
 		
@@ -196,7 +236,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         else{
 	
             threadNode * front = thJ->waitingNodes;
-            while(front->next != NULL){front=front->next;}
+            while(front->next != NULL){
+                front=front->next;
+            }
             front->next = scheduler->current;
             temp = front->next;
         }
@@ -207,6 +249,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
         my_pthread_yield();  //DEBUG: yield is not changing the value of
+        printf("THREAD %d AFTER YEILD\n",scheduler->current->tid);
 		//reset to did join back to false
 	 	*value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
         return 0;

@@ -26,7 +26,7 @@ int func1(){
 int waitForMePlease(){
     int z;
     int y;
-    for(y = 0; y < 20;y++){
+    for(y = 0; y < 30;y++){
         for(z= 0; z < 20000000; z++){
             continue;
         }
@@ -38,15 +38,12 @@ int waitForMePlease(){
     return 0;
 }
 
-int testFunc(void * val){
+int testFunc(void *  val){
     int * x;
-    int j;
-    while(j < 200000){
-        j++;
-    }
-    printf("In THREAD %d\n",*(int*)val);
+    printf("In THREAD %d\n",scheduler->current->tid);
     my_pthread_join(waitForMe,(void**)&x);
-    printf("Thread Number and Ret:\t%d\t%d\n",*(int*)val,*x);
+    printf("Thread Number and Ret:\t%d\t%d\n",*((int*)val),*x);
+    //my_pthread_exit(NULL);
     return 0;
 }
 
@@ -62,7 +59,7 @@ int testThreads(int num){
 
 int main(){
 
-        testThreads(2);
+        testThreads(3);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);
