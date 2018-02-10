@@ -33,7 +33,8 @@ typedef struct threadNode
 	bool did_join;
 } threadNode;
 
-typedef struct threadQ{
+typedef struct threadQ
+{
     threadNode * front;
     threadNode * rear;
     int size;
@@ -53,7 +54,8 @@ typedef struct my_pthread_mutex_t
 void mutex_enqueue(threadNode*, my_pthread_mutex_t *);
 
 
-typedef struct Scheduler{
+typedef struct Scheduler
+{
     threadQ ** tq;
     threadNode* current;
     int no_threads;
@@ -71,4 +73,6 @@ threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
 threadNode* mutex_dequeue(my_pthread_mutex_t *);
 void thread_q_init(threadNode *,threadQ*);
+void yield_sig_handler(int signum);
+void normal_sig_handler();
 #endif

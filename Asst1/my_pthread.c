@@ -15,7 +15,18 @@
 #define MEM 64000
 int tCount=0;
 
-
+void normal_sig_handler()
+{
+	setitimer(ITIMER_VIRTUAL, 0, NULL);
+	threadNode * curr = scheduler->current;
+	curr->numSlices --;
+	if (curr->numSlices == 0)
+	{
+		curr->qlevel = (curr->qlevel+1)%LEVELS;
+		curr->numSlices = curr->qlevel+1;
+		enqueue(curr);
+		yield_sig_handler(3);
+	}
 
 void * wrapper_function(void*(*start)(void*),void*args){
     start(args);
@@ -82,13 +93,6 @@ void yield_sig_handler(int signum)
   }
 }
 
-//this is scheduled to run every 25 milliseconds
-void normal_sig_handler(int signum)
-{
-   yield_sig_handler(3);
-}
-
-
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
 {
 	ucontext_t newthread;
@@ -130,7 +134,8 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 }
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) 
+{
 	/**
 	 *
 	 *Initlaize scheduler

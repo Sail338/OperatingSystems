@@ -10,10 +10,12 @@
  *
  **/
 
-void enqueue(threadNode *Node){
+void enqueue(threadNode *Node)
+{
     //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
-    if(threadq == NULL){
+    if(threadq == NULL)
+	{
 		threadq = malloc(sizeof(threadQ));
 		scheduler->tq[Node->qlevel] = threadq;	
 		//shceduler->tq[0]->fronto
@@ -45,7 +47,7 @@ void enqueue(threadNode *Node){
         threadq ->size ++;
     	if (threadq -> threshold == 0)
 		{
-
+			//was something supposed to go here??
 		}
 	}
 }
@@ -74,7 +76,6 @@ threadNode* dequeue (int  curr)
  * @param int * curr takes a pointer to an iterator which is the current index in our Array of queues
  * 
  */
-
 
 threadQ * get_next_executable(int * curr)
 {
@@ -151,6 +152,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 		mutex ->waitQ -> size ++;
 	}
 }
+
 threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 {
 	if(mutex->waitQ ->size == 0)
@@ -167,8 +169,8 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 
 }
 
-
-void  thread_q_init(threadNode * tNode,threadQ* threadq){
+void  thread_q_init(threadNode * tNode,threadQ* threadq)
+{
         threadq -> front = (threadNode *)malloc(sizeof(threadNode));
         threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;
