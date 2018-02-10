@@ -59,7 +59,7 @@ int testThreads(int num){
 
 int main(){
 
-        testThreads(3);
+        testThreads(500000000);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);

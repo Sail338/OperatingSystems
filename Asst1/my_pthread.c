@@ -17,7 +17,7 @@ int tCount=0;
 
 
 
-void * wrapper_function((void*)(*start)(void*),void*args){
+void * wrapper_function(void*(*start)(void*),void*args){
     start(args);
     my_pthread_exit(NULL);
 }
@@ -118,7 +118,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 		newthread. uc_stack.ss_sp=malloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
  		newthread. uc_stack.ss_flags=0;
-		makecontext(&newthread, (void*)(*wrapper_function), 2,(void*)(*function)(void*),args);
+		makecontext(&newthread,(void*)wrapper_function, 2,function,arg);
 		
 	}
 	
