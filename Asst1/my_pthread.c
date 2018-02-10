@@ -15,38 +15,6 @@
 #define MEM 64000
 int tCount=0;
 
-//this is scheduled to run every 25 milliseconds
-/*	int slices = (scheduler->current->qlevel+1)%LEVELS;
-	int qlevel = (scheduler->current->qlevel+1)%LEVELS;
-	if (slices == 0)
-		slices ++;
-	scheduler->current->qlevel = qlevel;
-	
-	scheduler->current->numSlices = slices;
-*/	
-	
-void maintenance_cycle()
-{
-	threadQ * promoQ = scheduler->tq[LEVELS-1];
-	threadNode * promoNode;
-	if (promoQ != NULL)
-	{
-		promoNode = promoQ -> front;
-		if (promoNode != NULL)
-		{
-			threadNode * ptr = promoNode;
-			while (ptr != NULL)
-			{
-				ptr -> numSlices = 1;
-			}
-			enqueue(promoNode);
-			scheduler->tq[0]->rear = promoQ -> rear;
-		}	
-		scheduler->tq[LEVELS-1]->front = NULL;
-		scheduler->tq[LEVELS-1]->rear = NULL;	
-	}
-}
-
 void normal_sig_handler()
 {
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
@@ -54,22 +22,11 @@ void normal_sig_handler()
 	curr->numSlices --;
 	if (curr->numSlices == 0)
 	{
-		//IS THIS RIGHT? (i think it's right)
-		if (curr->qlevel == LEVELS-1)
-		{
-			curr->qlevel=0;
-			curr->numSlices = 1;
-			enqueue(curr);
-		}
-		else
-		{
-			curr->qlevel ++;
-			curr->numSlices = scheduler->current->qlevel;
-		}
+		curr->qlevel = (curr->qlevel+1)%LEVELS;
+		curr->numSlices = curr->qlevel+1;
+		enqueue(curr);
+		yield_sig_handler(3);
 	}
-	maintenance_cycle();
-	yield_sig_handler(3);
-	//restart the timer?I
 }
 
 void yield_sig_handler(int signum)
@@ -128,7 +85,8 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 }
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) 
+{
 	/**
 	 *
 	 *Initlaize scheduler
