@@ -23,10 +23,14 @@ typedef struct threadNode
 	double spawnTime;
     uint tid;
     int qlevel;
+    struct threadNode * waitingNodes;
 	//for prioritization of old threads. when something gets pushed down in the MLPQ, increase this
 	//so that when it comes back to the top after a while, it gets to run for longer
 	int numSlices;
-	bool yield;
+	void * return_value;
+    int term;
+	//flag to detect whether this tread joined another thread or not
+	bool did_join;
 } threadNode;
 
 typedef struct threadQ{
@@ -58,7 +62,7 @@ typedef struct Scheduler{
 
 }Scheduler;
  
-
+void * wrapper_function(void*(*start)(void*), void*args);
 void enqueue(threadNode *);
 threadQ * get_next_executable(int * curr);
 int init;
