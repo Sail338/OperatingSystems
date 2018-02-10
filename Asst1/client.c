@@ -42,7 +42,12 @@ int testFunc(void *  val){
     int * x;
     printf("In THREAD %d\n",scheduler->current->tid);
     my_pthread_join(waitForMe,(void**)&x);
-    printf("Thread Number and Ret:\t%d\t%d\n",*((int*)val),*x);
+    if(x == NULL){
+        printf("THREAD TERMINATED!\t%x\n",*((int*)val));
+    }
+    else{
+        printf("Thread Number and Ret:\t%d\t%d\n",*((int*)val),*x);
+    }
     //my_pthread_exit(NULL);
     return 0;
 }
@@ -61,7 +66,7 @@ int testThreads(int num){
 
 int main(){
 
-        testThreads(5);
+        testThreads(5000);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);

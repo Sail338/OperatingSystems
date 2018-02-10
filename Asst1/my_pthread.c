@@ -254,7 +254,8 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	 	*value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
         return 0;
     }
-	//TODO check if thread is already terminated
+	//TODO check Need to deal with errorno
+    *value_ptr = NULL;
 	return -1;
     
 }
