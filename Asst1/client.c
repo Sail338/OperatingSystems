@@ -26,8 +26,8 @@ int func1(){
 int waitForMePlease(){
     int z;
     int y;
-    for(y = 0; y < 200;y++){
-        for(z= 0; z < 2000000000; z++){
+    for(y = 0; y < 20;y++){
+        for(z= 0; z < 20000000; z++){
             continue;
         }
     }
@@ -41,7 +41,7 @@ int waitForMePlease(){
 int testFunc(void * val){
     int * x;
     int j;
-    while(j < 2000000){
+    while(j < 200000){
         j++;
     }
     printf("In THREAD %d\n",*(int*)val);
@@ -52,9 +52,9 @@ int testFunc(void * val){
 
 int testThreads(int num){
     my_pthread_create(&waitForMe,NULL,(void*)waitForMePlease,NULL);
-    my_pthread_t * list = malloc(sizeof(my_pthread_t)*30);
+    my_pthread_t * list = malloc(sizeof(my_pthread_t)*num);
     int i;
-    for(i = 0; i < 30; i++){
+    for(i = 0; i < num; i++){
         my_pthread_create(&list[i], NULL,(void*)testFunc,(void*)&i);
     }
     return 0;
@@ -62,7 +62,7 @@ int testThreads(int num){
 
 int main(){
 
-        testThreads(30);
+        testThreads(2);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);
@@ -73,8 +73,9 @@ int main(){
 		//printf("Back in main bois");
         //
         //Main Thread should run super long as to not end the process
-        void *x;
+        int *x;
         my_pthread_join(waitForMe,(void**)&x);
+        printf("Hey I just finished Join from Main Context!\n");
         return 0;
 }
 

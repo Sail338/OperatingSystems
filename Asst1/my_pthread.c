@@ -49,6 +49,7 @@ void yield_sig_handler(int signum)
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
+   printf("Did I get here?\n");
    yield_sig_handler(3);
 }
 
@@ -159,6 +160,7 @@ int my_pthread_yield()
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+    printf("In exit\n");
     threadNode * toBeDeleted = NULL;
     toBeDeleted = scheduler->current;
     //1. Deal with Waiting
@@ -182,6 +184,7 @@ void my_pthread_exit(void *value_ptr) {
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
+    printf("Im in Join bois\n");
     threadNode * thJ = thread;
     threadNode * temp = NULL;
 		
@@ -203,10 +206,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }*/
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
-        my_pthread_yield();
+        my_pthread_yield();  //DEBUG: yield is not changing the value of
 		//reset to did join back to false
-		scheduler->current->did_join = false;
-	 	*value_ptr = thread->return_value;
+	 	*value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
         return 0;
     }
 	//TODO check if thread is already terminated
