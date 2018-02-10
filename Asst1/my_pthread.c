@@ -19,7 +19,7 @@ int tCount=0;
 void yield_sig_handler(int signum)
 {
 	// RESET the timer to 0
-//  setitimer(ITIMER_VIRTUAL,0,NULL);
+   setitimer(ITIMER_VIRTUAL,0,NULL);
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
   threadNode * temp = scheduler -> current;
   if(temp == NULL){
@@ -39,9 +39,9 @@ void yield_sig_handler(int signum)
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     //reset the timer
- //   setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     //swap th contexts
-        swapcontext(&(temp->thread),&(scheduler -> current->thread));
+    swapcontext(&(temp->thread),&(scheduler -> current->thread));
     
   }
 }
@@ -49,7 +49,7 @@ void yield_sig_handler(int signum)
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
-  //  yield_sig_handler(3);
+   yield_sig_handler(3);
 }
 
 
@@ -77,7 +77,6 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 		
 		*thread = node;
         
-		printf("address of thread in Pthread_create %x\n",*thread);
 	    //we dont want anything to happen after thread is done
 		newthread . uc_link = 0;
 		newthread. uc_stack.ss_sp=malloc(MEM);
@@ -132,7 +131,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	 * **/
 	if(init == 0){
 			init = 1;
-		   // setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
+		    setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
 			//start timer
 			//
 		}
@@ -175,7 +174,6 @@ void my_pthread_exit(void *value_ptr) {
             toBeDeleted->waitingNodes = toBeDeleted->waitingNodes->next;
 		
         }
-		printf("Completed Exit \n");
     }
     my_pthread_yield();
 }
@@ -185,12 +183,10 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
     threadNode * thJ = thread;
-	printf("Address of waiting Nodes: %x\n",thJ->waitingNodes);
     threadNode * temp = NULL;
 		
     if(thJ->term != 1){
         if(thJ->waitingNodes == NULL){
-			printf("Got here\n");		
             thJ->waitingNodes = scheduler->current;
             temp = thJ->waitingNodes;
         }
@@ -207,18 +203,12 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }*/
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
-		printf("I think we reached here\n");
-        printf("Address of Scheduler Current: %d\n",scheduler->current);
         my_pthread_yield();
 		//reset to did join back to false
 		scheduler->current->did_join = false;
-		printf("I broke out of yield\n");
 	 	*value_ptr = thread->return_value;
-	    printf("AFTER YIELD\n");	
-	//	printf("This is value in join: %d\n",*(int *)*value_ptr);	
         return 0;
     }
-    printf("Terminated Thread\n");
 	//TODO check if thread is already terminated
 	return -1;
     
