@@ -52,14 +52,16 @@ int testThreads(int num){
     my_pthread_t * list = malloc(sizeof(my_pthread_t)*num);
     int i;
     for(i = 0; i < num; i++){
-        my_pthread_create(&list[i], NULL,(void*)testFunc,(void*)&i);
+        int * z = malloc(sizeof(int)*num);
+        z[i] = i;
+        my_pthread_create(&list[i], NULL,(void*)testFunc,&z[i]);
     }
     return 0;
 }
 
 int main(){
 
-        testThreads(500000000);
+        testThreads(5);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);
