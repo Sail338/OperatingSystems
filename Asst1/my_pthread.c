@@ -16,7 +16,6 @@
 int tCount=0;
 
 //this is scheduled to run every 25 milliseconds
-
 void normal_sig_handler()
 {
 	
@@ -171,11 +170,8 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
 {
-	if(mutex -> isLocked == false)
-	{
-		mutex ->isLocked = true;
-	}
-	else
+	bool lock_state = __sync_or_and_fetch (&mutex, true);
+	if (lock_state == true)
 	{
 		//save the context
 		//set scheduler context to null
