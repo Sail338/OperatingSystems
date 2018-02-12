@@ -81,7 +81,15 @@ void yield_sig_handler(int signum)
     	enqueue(scheduler -> current);
 	}
     //DEQUEUE a Node
+<<<<<<< Updated upstream
     dequeuedNode = dequeue((scheduler ->current->qlevel));
+=======
+    //dequeuedNode = dequeue((scheduler ->current->qlevel)); GOING TO DEQUEUE 0
+    dequeuedNode = dequeue(0);
+    if(dequeuedNode == NULL){
+        return;
+    }
+>>>>>>> Stashed changes
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     scheduler->current->next = NULL;
@@ -200,7 +208,6 @@ int my_pthread_yield()
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
-    printf("In exit\n");
     threadNode * toBeDeleted = NULL;
     toBeDeleted = scheduler->current;
     //1. Deal with Waiting
@@ -213,7 +220,6 @@ void my_pthread_exit(void *value_ptr) {
         toBeDeleted -> return_value = value_ptr;
         threadNode * nextOne = toBeDeleted->waitingNodes;
         while(nextOne != NULL){
-            printf("%x->",toBeDeleted->waitingNodes);
             nextOne = toBeDeleted->waitingNodes->next;
             //printf("%x\n",toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes->next = NULL;
@@ -221,7 +227,6 @@ void my_pthread_exit(void *value_ptr) {
             toBeDeleted->waitingNodes = nextOne;
 		
         }
-        printf("\n");
     }
     my_pthread_yield();
 }
@@ -254,13 +259,16 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
         my_pthread_yield();  //DEBUG: yield is not changing the value of
-        printf("THREAD %d AFTER YEILD\n",scheduler->current->tid);
 		//reset to did join back to false
-	 	*value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+        if(value_ptr != NULL){
+            *value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+        }
         return 0;
     }
 	//TODO check Need to deal with errorno
-    *value_ptr = NULL;
+    if(value_ptr != NULL){
+        *value_ptr = NULL;
+    }
 	return -1;
     
 }

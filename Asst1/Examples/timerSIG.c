@@ -4,10 +4,14 @@
 #include <string.h>
 #include <sys/time.h>
 
+static struct itimerval timer;
 //Signal Handler
 void timer_handler(int signum){
+    setitimer(ITIMER_VIRTUAL,0,NULL);
     static int count = 0;
     printf("Timer has expired %d times\n", ++ count);
+    sleep(1);
+    setitimer(ITIMER_VIRTUAL,&timer,NULL);
 }
 
 
@@ -15,7 +19,7 @@ void timer_handler(int signum){
 int main(){
     //Creating the signal structure
     struct sigaction sa;
-    struct itimerval timer;
+    //struct itimerval timer;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = &timer_handler;
     //I believe we can make the below SIGNAL any signal we want, so prefer
@@ -28,11 +32,17 @@ int main(){
 	timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = 25000;
 	//timeval struct with value to which timer will be reset after expiration. if 0, timer will be disabled after the interval, else will expire repeatedly after this interval
-    timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = 25000;
 	//sets the signal for when timers expire to the specified handler
     //if ITIMER_REAL, process sent to SIGALRM after WALL CLOCK time elapsed. if ITIMER_VIRTUAL, sent to SIGVWTALRM after specified PROCESS RUNTIME (i.e. execution time in user mode)
 	setitimer(ITIMER_VIRTUAL, &timer, NULL);
+    //setitimer(ITIMER_VIRTUAL,0,NULL);
+    //setitimer(ITIMER_VIRTUAL,0,NULL);
+    //setitimer(ITIMER_VIRTUAL,&timer,NULL);
     //At this point you should be done
-    while(1);
+    int i = 0;
+    while(i != 2000000000){
+        printf("IN MAIN!\n");
+        i+=1;
+    }
+    return 0;
 }
