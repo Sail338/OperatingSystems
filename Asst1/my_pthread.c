@@ -78,12 +78,12 @@ void yield_sig_handler(int signum)
   else{
     threadNode * dequeuedNode = NULL;
     //enqueue the current Node back to the MLQ
-	if(scheduler->current->did_join == false || scheduler->current->is_waiting == false){
+	if(scheduler->current->did_join == false &&  scheduler->current->is_waiting == false){
     	enqueue(scheduler -> current);
 	}
     //DEQUEUE a Node
     //dequeuedNode = dequeue((scheduler ->current->qlevel)); GOING TO DEQUEUE 0
-    dequeuedNode = dequeue(scheduler->current->qlevel);
+    dequeuedNode = dequeue(0);
     if(dequeuedNode == NULL){
         return;
     }
@@ -296,11 +296,13 @@ int my_pthread_mutex_lock(my_pthread_mutex_t * mutex)
 		//set scheduler context to null
 		//yield
 		mutex_enqueue(scheduler->current, mutex);
-		__atomic_test_and_set(&(scheduler->current->is_waiting),__ATOMIC_SEQ_CST);
+		scheduler->current->is_waiting = true;
 		printf("failed to lock\n");
 		my_pthread_yield();
 		return -1;
 	}
+	return 0;
+	
 	return 0;
 };
 
