@@ -80,8 +80,16 @@ threadNode* dequeue (int  curr)
 threadQ * get_next_executable(int * curr)
 {
 	int  last;
-	//find first non empty threadQ
+	//find first non empty thread/Q
 	threadQ * non_empty = _scan_non_empty(curr);
+    //if the size one this means that we will dq the same thread we just enqed so start from 0 again if this is the case
+    if(non_empty->size == 1){
+        *curr = 0;
+        non_empty = _scan_non_empty(curr);
+    }
+    if(non_empty == NULL){
+        return NULL;
+    }
 	//save the location of the first non empty queue in case of edge cases
 	last = *curr;
 	//if it's already maxed out its threshold, set threshold back to max and find next non empty
@@ -114,15 +122,19 @@ threadQ * get_next_executable(int * curr)
 threadQ * _scan_non_empty(int * curr)
 
 {
+    bool wrap = false;
     threadQ* threadq = scheduler->tq[*curr];
-	while(threadq == NULL || (threadq ->front == NULL)){
-		
-        threadq = scheduler->tq[*curr];
+	while(threadq == NULL || (threadq ->front == NULL)){	
         *curr = *curr +1;
         if(*curr >= LEVELS)
 		{
-            return NULL;
+            if(wrap){
+                return NULL;
+            }
+            *curr = 0;
+            wrap = true;
         }
+        threadq = scheduler->tq[*curr];
 
 	}
     return threadq;
