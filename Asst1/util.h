@@ -63,7 +63,7 @@ typedef struct Scheduler
     struct itimerval timer;
 
 }Scheduler;
- 
+void schedulerString(); 
 void * wrapper_function(void*(*start)(void*), void*args);
 void enqueue(threadNode *);
 threadQ * get_next_executable(int * curr);

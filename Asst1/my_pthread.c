@@ -15,7 +15,7 @@
 #define MEM 64000
 int tCount=0;
 
-void normal_sig_handler()
+void normal_sig_handler(int signum)
 {
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
 	threadNode * curr = scheduler->current;
@@ -24,9 +24,14 @@ void normal_sig_handler()
 	{
 		curr->qlevel = (curr->qlevel+1)%LEVELS;
 		curr->numSlices = curr->qlevel+1;
-		enqueue(curr);
+        //schedulerString();
 		yield_sig_handler(3);
 	}
+    else{
+        setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);
+    }
+
+}
 
 void * wrapper_function(void*(*start)(void*),void*args){
     start(args);
@@ -81,7 +86,11 @@ void yield_sig_handler(int signum)
     	enqueue(scheduler -> current);
 	}
     //DEQUEUE a Node
-    dequeuedNode = dequeue((scheduler ->current->qlevel));
+    //dequeuedNode = dequeue((scheduler ->current->qlevel)); GOING TO DEQUEUE 0
+    dequeuedNode = dequeue(0);
+    if(dequeuedNode == NULL){
+        return;
+    }
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     scheduler->current->next = NULL;
@@ -157,13 +166,13 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler->timer.it_value.tv_sec = 0;
 		scheduler->timer.it_value.tv_usec = 25000;
 		scheduler->current = NULL;
-		scheduler->current = createNewNode(scheduler->current,0,25,(double)time(NULL),NULL,NULL,NULL);
+		scheduler->current = createNewNode(scheduler->current,0,1,(double)time(NULL),NULL,NULL,NULL);
 			
 		
 	}
 	//create a threadNode
 	threadNode * node = NULL;
-	node = createNewNode(node,0,25,(double)time(NULL),thread,function,arg);
+	node = createNewNode(node,0,1,(double)time(NULL),thread,function,arg);
     //thread = (my_pthread_t)node;
 	enqueue(node);
 	/**
