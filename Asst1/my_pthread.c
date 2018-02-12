@@ -82,7 +82,7 @@ void yield_sig_handler(int signum)
 	}
     //DEQUEUE a Node
     //dequeuedNode = dequeue((scheduler ->current->qlevel)); GOING TO DEQUEUE 0
-    dequeuedNode = dequeue(0);
+    dequeuedNode = dequeue(scheduler->current->qlevel);
     if(dequeuedNode == NULL){
         return;
     }
