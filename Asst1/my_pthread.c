@@ -42,7 +42,8 @@ void * wrapper_function(void*(*start)(void*),void*args){
 
 
 void schedulerString(){
-    printf("Current Context Address %x\n",&(scheduler->current));
+    printf("Current Context Address %x\n",scheduler->current);
+    printf("Current QLevel: %d\n",scheduler->current->qlevel);
     //Print out each Queue
     int x;
     for(x = 0; x < LEVELS; x++){
@@ -51,15 +52,9 @@ void schedulerString(){
         }
         threadNode * ptr = scheduler->tq[x]->front;
         printf("Queue %d:\nSIZE:%d\t\n",x,scheduler->tq[x]->size);
-        sleep(1);
-        int k = 0;
         while(ptr != NULL){
             printf("%x\t",ptr);
-            if(k > 5){
-                break;
-            }
             ptr = ptr->next;
-            k++;
         }
         printf("NULL\n\n");
     }

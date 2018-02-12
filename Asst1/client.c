@@ -27,7 +27,7 @@ int waitForMePlease(){
     int z;
     int y;
     for(y = 0; y < 30;y++){
-        for(z= 0; z < 20000000; z++){
+        for(z= 0; z < 20; z++){
             continue;
         }
     }
@@ -42,9 +42,9 @@ int testFunc(void *  val){
     int * x;
     //printf("In THREAD %d\n",scheduler->current->tid);
     //my_pthread_join(waitForMe,(void**)&x);
+    
     while(true){
-        //continue;
-        printf("IM THREAD%x\n",*((int*)val));
+        continue;
     }
     //if(x == NULL){
     //    printf("THREAD TERMINATED!\t%x\n",*((int*)val));
@@ -64,13 +64,14 @@ int testThreads(int num){
         int * z = malloc(sizeof(int)*num);
         z[i] = i;
         my_pthread_create(&list[i], NULL,(void*)testFunc,&z[i]);
+        printf("Done creating thread %d\n",z[i]);
     }
     return 0;
 }
 
 int main(){
 
-        testThreads(3);
+        testThreads(50);
 		//printf("adress before create %x\n",&z);
         //my_pthread_create(&z,NULL,(void*)func1,NULL);
 		//printf("adress of thread after creation %x \n",&z);
@@ -82,8 +83,7 @@ int main(){
         //
         //Main Thread should run super long as to not end the process
         int *x;
-        my_pthread_join(waitForMe,(void**)&x);
-        while(true){printf("IM MAIN!\n");}
+        while(true){printf("IN MAIN\n");}
         return 0;
 }
 
