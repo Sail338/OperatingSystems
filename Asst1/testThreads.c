@@ -23,6 +23,19 @@ int testFunc(void *  val){
     return 0;
 }
 
+
+int testFuncSync(void *  val){
+    char fileName[50];
+    sprintf(fileName,"tests/test%d.txt",*((int*)val));
+    FILE * fp = fopen(fileName,"a");
+    int i;
+    for(i = 0; i < 200000; i++){
+        fprintf(fp,"IN SYNC CALL %d: Current Val: %d\n",*((int*)val),i);
+    }
+    fclose(fp);
+    return 0;
+}
+
 my_pthread_t * testThreads(int num){
     list = malloc(sizeof(my_pthread_t)*num);
     int i;
@@ -32,22 +45,23 @@ my_pthread_t * testThreads(int num){
         my_pthread_create(&list[i], NULL,(void*)testFunc,&z[i]);
     }
     return list;
+
+}
+
+void testSync(int num){
+    int i;
+    for(i = num; i < num*2; i++){
+        int * x = malloc(sizeof(int));
+        *x = i;
+        testFuncSync((void*)x);
+        free(x);
+    }
 }
 
 int main(){
         clock_t begin = clock();
-        int size = 150;
+        int size = 50;
         list = testThreads(size);
-		//printf("adress before create %x\n",&z);
-        //my_pthread_create(&z,NULL,(void*)func1,NULL);
-		//printf("adress of thread after creation %x \n",&z);
-		//printf("JOINED\n");
-		//int *x;
-		//my_pthread_join(z,(void **)&x);
-		//printf("%d\n",*x);
-		//printf("Back in main bois");
-        //
-        //Main Thread should run super long as to not end the process
         int i = 0;
         int * x;
         while( i < size){
@@ -56,7 +70,12 @@ int main(){
         }
         clock_t end = clock();
         double totTime = (double)(end-begin)/CLOCKS_PER_SEC;
-        printf("FIN\nTIME: %f\n",totTime);
+        printf("THREAD FIN\nTIME: %f\n\n\n",totTime);
+        begin = clock();
+        testSync(size);
+        end = clock();
+        totTime = (double)(end-begin)/CLOCKS_PER_SEC;
+        printf("SYNC FIN\nTIME: %f\n",totTime);
         return 0;
 }
 
