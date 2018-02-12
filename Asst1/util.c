@@ -78,6 +78,10 @@ threadNode* dequeue (int  curr)
 
 threadQ * get_next_executable(int * curr)
 {
+	if(*curr <0 || *curr >4){
+			*curr = 0;
+
+	}
 	int  last;
 	//find first non empty thread/Q
 	threadQ * non_empty = _scan_non_empty(curr);
@@ -120,6 +124,9 @@ threadQ * get_next_executable(int * curr)
 
 threadQ * _scan_non_empty(int * curr)
 {
+	if (*curr <0 || * curr >4){
+			*curr = 0;
+		}
     bool wrap = false;
     threadQ* threadq = scheduler->tq[*curr];
 	while(threadq == NULL || (threadq ->front == NULL)){	
