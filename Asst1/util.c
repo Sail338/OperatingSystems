@@ -164,11 +164,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	}
 }
 
-<<<<<<< HEAD
-threadNode * mutex_dequeue(my_pthread_mutex_t * mutex)
-=======
 threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
->>>>>>> master
 {
 	if(mutex->waitQ ->size == 0)
 	{

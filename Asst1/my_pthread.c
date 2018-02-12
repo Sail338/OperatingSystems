@@ -289,8 +289,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
 {
 	//returns true only if contents were successfully set
-	bool can_lock = __atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
-	if (can_lock == false)
+	if (__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST) )
 	{
 		//save the context
 		//set scheduler context to null
@@ -298,6 +297,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t * mutex)
 		mutex_enqueue(scheduler->current, mutex);
 		getcontext(&scheduler->current->thread);
 		scheduler->current = NULL;
+		printf("failed to lock\n");
 		my_pthread_yield();
 		return -1;
 	}
