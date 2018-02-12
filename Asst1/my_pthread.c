@@ -259,9 +259,10 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
         my_pthread_yield();  //DEBUG: yield is not changing the value of
-        printf("THREAD %d AFTER YEILD\n",scheduler->current->tid);
 		//reset to did join back to false
-	 	*value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+        if(value_ptr != NULL){
+	 	    *value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+        }
         return 0;
     }
 	//TODO check Need to deal with errorno

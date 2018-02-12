@@ -39,7 +39,6 @@ void enqueue(threadNode *Node)
     } 
     // add to the end of the Linked list
     else {
-        threadq ->rear->next =(threadNode *) malloc(sizeof(threadNode));
         threadq ->rear ->next = Node;
         Node->next = NULL; //ADDED: id=1
         threadq->rear = Node;
@@ -124,7 +123,7 @@ threadQ * _scan_non_empty(int * curr)
     bool wrap = false;
     threadQ* threadq = scheduler->tq[*curr];
 	while(threadq == NULL || (threadq ->front == NULL)){	
-        *curr = *curr +1;
+        *curr = *curr +1;     
         if(*curr >= LEVELS)
 		{
             if(wrap){
@@ -156,7 +155,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	else
 	{
 		threadNode * rear = mutex->waitQ->rear;
-		rear->next = (threadNode *)malloc(sizeof(threadNode));
+		//rear->next = (threadNode *)malloc(sizeof(threadNode));
 		rear->next = tNode;
 		mutex->waitQ->rear = rear->next;
 		mutex->waitQ->rear->next = NULL;
@@ -182,8 +181,6 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 
 void  thread_q_init(threadNode * tNode,threadQ* threadq)
 {
-        threadq -> front = (threadNode *)malloc(sizeof(threadNode));
-        threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;
         threadq ->rear = tNode;
         threadq ->front ->next = NULL;
