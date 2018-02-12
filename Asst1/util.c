@@ -82,13 +82,13 @@ threadQ * get_next_executable(int * curr)
 	int  last;
 	//find first non empty thread/Q
 	threadQ * non_empty = _scan_non_empty(curr);
+    if(non_empty == NULL){
+        return NULL;
+    }
     //if the size one this means that we will dq the same thread we just enqed so start from 0 again if this is the case
     if(non_empty->size == 1){
         *curr = 0;
         non_empty = _scan_non_empty(curr);
-    }
-    if(non_empty == NULL){
-        return NULL;
     }
 	//save the location of the first non empty queue in case of edge cases
 	last = *curr;

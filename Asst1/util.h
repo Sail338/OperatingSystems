@@ -30,6 +30,7 @@ typedef struct threadNode
     int term;
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
+	bool is_waiting;
 } threadNode;
 
 typedef struct threadQ

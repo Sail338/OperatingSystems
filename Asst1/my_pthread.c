@@ -78,7 +78,7 @@ void yield_sig_handler(int signum)
   else{
     threadNode * dequeuedNode = NULL;
     //enqueue the current Node back to the MLQ
-	if(scheduler->current->did_join == false){
+	if(scheduler->current->did_join == false || scheduler->current->is_waiting == false){
     	enqueue(scheduler -> current);
 	}
     //DEQUEUE a Node
@@ -112,6 +112,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> term =0;
     node -> return_value = NULL;
 	node->did_join = false;
+	node->is_waiting = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -295,8 +296,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t * mutex)
 		//set scheduler context to null
 		//yield
 		mutex_enqueue(scheduler->current, mutex);
-		getcontext(&scheduler->current->thread);
-		scheduler->current = NULL;
+		__atomic_test_and_set(&(scheduler->current->is_waiting),__ATOMIC_SEQ_CST);
 		printf("failed to lock\n");
 		my_pthread_yield();
 		return -1;
