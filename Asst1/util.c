@@ -14,7 +14,8 @@ void enqueue(threadNode *Node)
 {
     //check if the head if the queue is null and initialize relvant values
     threadQ* threadq = scheduler->tq[Node->qlevel];
-    if(threadq == NULL){
+    if(threadq == NULL)
+	{
 		threadq = malloc(sizeof(threadQ));
 		scheduler->tq[Node->qlevel] = threadq;	
 		//shceduler->tq[0]->fronto
@@ -40,12 +41,13 @@ void enqueue(threadNode *Node)
     else {
         threadq ->rear->next =(threadNode *) malloc(sizeof(threadNode));
         threadq ->rear ->next = Node;
+        Node->next = NULL; //ADDED: id=1
         threadq->rear = Node;
-        threadq -> rear ->next = NULL;
+        //threadq -> rear ->next = NULL; REMOVED: id=1
         threadq ->size ++;
     	if (threadq -> threshold == 0)
 		{
-
+			//was something supposed to go here??
 		}
 	}
 }
@@ -64,7 +66,9 @@ threadNode* dequeue (int  curr)
         return NULL;
     } 
     threadNode * tNode = threadq -> front;
+    threadq->size--;
     threadq -> front = threadq ->front->next;
+    tNode->next = NULL;
     return tNode;
 }
 /**
@@ -73,12 +77,19 @@ threadNode* dequeue (int  curr)
  * 
  */
 
-
 threadQ * get_next_executable(int * curr)
 {
 	int  last;
-	//find first non empty threadQ
+	//find first non empty thread/Q
 	threadQ * non_empty = _scan_non_empty(curr);
+    //if the size one this means that we will dq the same thread we just enqed so start from 0 again if this is the case
+    if(non_empty->size == 1){
+        *curr = 0;
+        non_empty = _scan_non_empty(curr);
+    }
+    if(non_empty == NULL){
+        return NULL;
+    }
 	//save the location of the first non empty queue in case of edge cases
 	last = *curr;
 	//if it's already maxed out its threshold, set threshold back to max and find next non empty
@@ -110,15 +121,19 @@ threadQ * get_next_executable(int * curr)
 
 threadQ * _scan_non_empty(int * curr)
 {
+    bool wrap = false;
     threadQ* threadq = scheduler->tq[*curr];
-	while(threadq == NULL || (threadq ->front == NULL)){
-		
-        threadq = scheduler->tq[*curr];
+	while(threadq == NULL || (threadq ->front == NULL)){	
         *curr = *curr +1;
         if(*curr >= LEVELS)
 		{
-            return NULL;
+            if(wrap){
+                return NULL;
+            }
+            *curr = 0;
+            wrap = true;
         }
+        threadq = scheduler->tq[*curr];
 
 	}
     return threadq;
@@ -149,7 +164,11 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	}
 }
 
+<<<<<<< HEAD
 threadNode * mutex_dequeue(my_pthread_mutex_t * mutex)
+=======
+threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
+>>>>>>> master
 {
 	if(mutex->waitQ ->size == 0)
 	{

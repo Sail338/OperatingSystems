@@ -10,7 +10,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
-#define LEVELS 10
+#define LEVELS 5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
 #define MAXTHD 10
@@ -22,10 +22,14 @@ typedef struct threadNode
 	double spawnTime;
     uint tid;
     int qlevel;
+    struct threadNode * waitingNodes;
 	//for prioritization of old threads. when something gets pushed down in the MLPQ, increase this
 	//so that when it comes back to the top after a while, it gets to run for longer
 	int numSlices;
-	bool yield;
+	void * return_value;
+    int term;
+	//flag to detect whether this tread joined another thread or not
+	bool did_join;
 } threadNode;
 
 typedef struct threadQ
@@ -57,8 +61,8 @@ typedef struct Scheduler
     struct itimerval timer;
 
 }Scheduler;
- 
-
+void schedulerString(); 
+void * wrapper_function(void*(*start)(void*), void*args);
 void enqueue(threadNode *);
 threadQ * get_next_executable(int * curr);
 int init;
@@ -67,4 +71,6 @@ threadQ* _scan_non_empty(int*curr);
 threadNode* dequeue();
 threadNode* mutex_dequeue(my_pthread_mutex_t *);
 void thread_q_init(threadNode *,threadQ*);
+void yield_sig_handler(int signum);
+void normal_sig_handler();
 #endif
