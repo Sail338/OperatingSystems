@@ -170,8 +170,9 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
 {
-	bool lock_state = __sync_or_and_fetch (&mutex, true);
-	if (lock_state == true)
+	//returns true only if contents were successfully set
+	bool can_lock = __atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
+	if (can_lock == false)
 	{
 		//save the context
 		//set scheduler context to null
