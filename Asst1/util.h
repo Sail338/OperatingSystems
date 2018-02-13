@@ -10,7 +10,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
-#define LEVELS 5
+#define LEVELS  3
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
 #define MAXTHD 10
