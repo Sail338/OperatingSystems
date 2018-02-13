@@ -18,6 +18,9 @@ int tCount=0;
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
+    if(__atomic_load_n(&(scheduler->SYS),__ATOMIC_SEQ_CST)){
+        return;
+    }
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
 	threadNode * curr = scheduler->current;
 	curr->numSlices --;
@@ -164,7 +167,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		scheduler->timer.it_value.tv_usec = 25000;
 		scheduler->current = NULL;
 		scheduler->current = createNewNode(scheduler->current,0,1,(double)time(NULL),NULL,NULL,NULL);
-			
+	    scheduler->SYS = false;		
 		
 	}
 	//create a threadNode
@@ -230,6 +233,7 @@ void my_pthread_exit(void *value_ptr) {
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
+    __atomic_store_n(&(scheduler->SYS),true, __ATOMIC_SEQ_CST);
 	//TODO reset node level to 0
     //We are going to change the current equal to the thread that is being waited on
     threadNode * thJ = thread;
@@ -255,6 +259,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         }*/
 		scheduler->current->did_join = true;
        // getcontext(&(temp->thread));
+        __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
         my_pthread_yield();  //DEBUG: yield is not changing the value of
 		//reset to did join back to false
         if(value_ptr != NULL){
@@ -268,6 +273,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
     if(value_ptr != NULL){
         *value_ptr = NULL;
     }
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	return -1;
     
 }
