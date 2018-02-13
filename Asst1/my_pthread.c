@@ -342,20 +342,21 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex)
 				curr -> next = NULL;
 				curr -> is_waiting = false;
 				mutex -> currThread = curr;
-				scheduler -> current = curr;
 
+				scheduler -> current = curr;
 			    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 				my_pthread_yield();
 			}
 			else
 			{
-				__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
+				__atomic_store_n(&(mutex->isLocked),false, __ATOMIC_SEQ_CST);
 				mutex->currThread = NULL;
 			}
 		}
 		else
 		{
-			__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
+			__atomic_store_n(&(mutex->isLocked),false, __ATOMIC_SEQ_CST);
+			mutex ->currThread = NULL;
 		}
 	}
 
