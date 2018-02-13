@@ -258,12 +258,16 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         my_pthread_yield();  //DEBUG: yield is not changing the value of
 		//reset to did join back to false
         if(value_ptr != NULL){
+
 	 	    *value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+
         }
         return 0;
     }
 	//TODO check Need to deal with errorno
-    *value_ptr = NULL;
+    if(value_ptr != NULL){
+        *value_ptr = NULL;
+    }
 	return -1;
     
 }
