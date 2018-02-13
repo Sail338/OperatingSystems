@@ -39,18 +39,25 @@ int testFuncSync(void *  val){
 my_pthread_t * testThreads(int num){
     list = malloc(sizeof(my_pthread_t)*num);
     int i;
+    int * z = malloc(sizeof(int)*num*5);
+    int nameOfFile = 0;
     for(i = 0; i < num; i++){
-        int * z = malloc(sizeof(int)*num);
-        z[i] = i;
-        my_pthread_create(&list[i], NULL,(void*)testFunc,&z[i]);
+        int done = 0;
+        while(done <= 5){
+            z[i] = nameOfFile;
+            my_pthread_create(&list[i], NULL,(void*)testFunc,&z[i]);
+            done+=1;
+            nameOfFile+=1;
+        }
     }
+    free(z);
     return list;
 
 }
 
 void testSync(int num){
     int i;
-    for(i = num; i < num*2; i++){
+    for(i = num*5; i < num*2*5; i++){
         int * x = malloc(sizeof(int));
         *x = i;
         testFuncSync((void*)x);
@@ -60,7 +67,7 @@ void testSync(int num){
 
 int main(){
         clock_t begin = clock();
-        int size = 50;
+        int size = 20;
         list = testThreads(size);
         int i = 0;
         int * x;

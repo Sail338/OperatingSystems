@@ -60,6 +60,7 @@ typedef struct Scheduler
     int no_threads;
 	struct sigaction sa;
     struct itimerval timer;
+    bool SYS;
 
 }Scheduler;
 void schedulerString(); 
