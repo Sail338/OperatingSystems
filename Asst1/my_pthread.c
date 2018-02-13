@@ -340,8 +340,12 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex)
 			if (curr != NULL)
 			{
 				curr -> next = NULL;
+				curr -> is_waiting = false;
 				mutex -> currThread = curr;
-				enqueue(curr);
+				scheduler -> current = curr;
+
+			    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
+				my_pthread_yield();
 			}
 			else
 			{

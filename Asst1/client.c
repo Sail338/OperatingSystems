@@ -7,6 +7,7 @@ int func(int val){
 	 my_pthread_mutex_lock(&mutex);
 	 indicator ++;
 	 printf("%d\n",indicator);
+	 my_pthread_mutex_unlock(&mutex);
 	//swapcontext(&(scheduler->tq[0]->front->thread),&(scheduler->current->thread));    
 	//my_pthread_exit(NULL);
 	return  0;
