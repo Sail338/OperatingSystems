@@ -72,7 +72,7 @@ void yield_sig_handler(int signum)
   if(temp == NULL){
     temp = dequeue(0);
     scheduler->current = temp;
-  //  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     setcontext(&(scheduler->current->thread));
   }
   else{
@@ -205,7 +205,6 @@ int my_pthread_yield()
 };
 
 void my_pthread_exit(void *value_ptr) {
-    printf("In exit\n");
     threadNode * toBeDeleted = NULL;
     toBeDeleted = scheduler->current;
     //1. Deal with Waiting
@@ -218,7 +217,6 @@ void my_pthread_exit(void *value_ptr) {
         toBeDeleted -> return_value = value_ptr;
         threadNode * nextOne = toBeDeleted->waitingNodes;
         while(nextOne != NULL){
-            printf("%x->",toBeDeleted->waitingNodes);
             nextOne = toBeDeleted->waitingNodes->next;
             //printf("%x\n",toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes->next = NULL;
@@ -226,7 +224,6 @@ void my_pthread_exit(void *value_ptr) {
             toBeDeleted->waitingNodes = nextOne;
 		
         }
-        printf("\n");
     }
     my_pthread_yield();
 }
