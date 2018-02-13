@@ -1,4 +1,3 @@
-
 #ifndef UTIL_H
 #define UTIL_H
 #include <ucontext.h>
@@ -11,7 +10,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
-#define LEVELS 5
+#define LEVELS  5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
 #define MAXTHD 10
@@ -31,6 +30,7 @@ typedef struct threadNode
     int term;
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
+	bool is_waiting;
 } threadNode;
 
 typedef struct threadQ
@@ -52,7 +52,6 @@ typedef struct my_pthread_mutex_t
 } my_pthread_mutex_t;
 
 void mutex_enqueue(threadNode*, my_pthread_mutex_t *);
-
 
 typedef struct Scheduler
 {

@@ -15,6 +15,7 @@
 #define MEM 64000
 int tCount=0;
 
+//this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
@@ -71,13 +72,13 @@ void yield_sig_handler(int signum)
   if(temp == NULL){
     temp = dequeue(0);
     scheduler->current = temp;
-  //  setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
+    setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     setcontext(&(scheduler->current->thread));
   }
   else{
     threadNode * dequeuedNode = NULL;
     //enqueue the current Node back to the MLQ
-	if(scheduler->current->did_join == false){
+	if(scheduler->current->did_join == false &&  scheduler->current->is_waiting == false){
     	enqueue(scheduler -> current);
 	}
     //DEQUEUE a Node
@@ -111,6 +112,7 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> term =0;
     node -> return_value = NULL;
 	node->did_join = false;
+	node->is_waiting = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
 	 * **/
@@ -202,7 +204,6 @@ int my_pthread_yield()
 	return 0;
 };
 
-/* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
     threadNode * toBeDeleted = NULL;
     toBeDeleted = scheduler->current;
@@ -257,7 +258,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
         my_pthread_yield();  //DEBUG: yield is not changing the value of
 		//reset to did join back to false
         if(value_ptr != NULL){
-            *value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+
+	 	    *value_ptr = thread->return_value;   //DEBUG: Return Value is 0 for some reason
+
         }
         return 0;
     }
@@ -271,7 +274,8 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 
 /* initial the mutex lock */
-int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
+{
 	mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
@@ -281,21 +285,54 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 		return 0;
 	}
 	return -1;
-	//ask Franny about EBUSY
+	//TODO ask Franny about EBUSY
 };
 
 /* aquire the mutex lock */
-int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
+{
+	//returns true only if contents were successfully set
+	if (__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST) )
+	{
+		//save the context
+		//set scheduler context to null
+		//yield
+		mutex_enqueue(scheduler->current, mutex);
+		scheduler->current->is_waiting = true;
+		printf("failed to lock\n");
+		my_pthread_yield();
+		return -1;
+	}
+	return 0;
+	
 	return 0;
 };
 
 /* release the mutex lock */
-int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex) 
+{
+	if (mutex -> isLocked == false)
+	{
+		return -1;
+	}
+	else
+	{
+		mutex -> isLocked = false;
+		if (mutex -> waitQ != NULL)
+		{
+			threadNode * curr = mutex_dequeue(mutex);
+			if (curr != NULL)
+			{
+				enqueue(curr);
+			}
+		}
+	}
 	return 0;
 };
 
 /* destroy the mutex */
-int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) 
+{
 	return 0;
 };
 

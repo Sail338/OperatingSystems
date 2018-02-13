@@ -39,7 +39,6 @@ void enqueue(threadNode *Node)
     } 
     // add to the end of the Linked list
     else {
-        threadq ->rear->next =(threadNode *) malloc(sizeof(threadNode));
         threadq ->rear ->next = Node;
         Node->next = NULL; //ADDED: id=1
         threadq->rear = Node;
@@ -82,14 +81,10 @@ threadQ * get_next_executable(int * curr)
 	int  last;
 	//find first non empty thread/Q
 	threadQ * non_empty = _scan_non_empty(curr);
-    //if the size one this means that we will dq the same thread we just enqed so start from 0 again if this is the case
-    if(non_empty->size == 1){
-        *curr = 0;
-        non_empty = _scan_non_empty(curr);
-    }
     if(non_empty == NULL){
         return NULL;
     }
+    //if the size one this means that we will dq the same thread we just enqed so start from 0 again if this is the case
 	//save the location of the first non empty queue in case of edge cases
 	last = *curr;
 	//if it's already maxed out its threshold, set threshold back to max and find next non empty
@@ -97,6 +92,9 @@ threadQ * get_next_executable(int * curr)
 	{
 		non_empty -> threshold = MAXTHD - *curr;
 		*curr += 1;
+		if(*curr >= LEVELS){
+				*curr = 0;
+			}
 	}
 	non_empty = _scan_non_empty(curr);
 	//THIS IS FOR THE EDGE CASE THAT THERE WAS ONLY ONE NONEMPTY QUEUE, AND IT HAPPENED TO HAVE BEEN MAXED OUT
@@ -120,12 +118,11 @@ threadQ * get_next_executable(int * curr)
 }
 
 threadQ * _scan_non_empty(int * curr)
-
 {
     bool wrap = false;
     threadQ* threadq = scheduler->tq[*curr];
 	while(threadq == NULL || (threadq ->front == NULL)){	
-        *curr = *curr +1;
+        *curr = *curr +1;     
         if(*curr >= LEVELS)
 		{
             if(wrap){
@@ -157,7 +154,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	else
 	{
 		threadNode * rear = mutex->waitQ->rear;
-		rear->next = (threadNode *)malloc(sizeof(threadNode));
+		//rear->next = (threadNode *)malloc(sizeof(threadNode));
 		rear->next = tNode;
 		mutex->waitQ->rear = rear->next;
 		mutex->waitQ->rear->next = NULL;
@@ -183,8 +180,6 @@ threadNode * mutex_dequeue(my_pthread_mutex_t *mutex)
 
 void  thread_q_init(threadNode * tNode,threadQ* threadq)
 {
-        threadq -> front = (threadNode *)malloc(sizeof(threadNode));
-        threadq ->rear = (threadNode *)malloc(sizeof(threadNode));
         threadq ->front = tNode;
         threadq ->rear = tNode;
         threadq ->front ->next = NULL;
