@@ -353,6 +353,10 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex)
 				mutex->currThread = NULL;
 			}
 		}
+		else
+		{
+			__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
+		}
 	}
 
     __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
