@@ -282,6 +282,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	{
 		mutex -> isLocked = false;
 		mutex -> waitQ = NULL;
+		mutex -> currThread = NULL;
 		return 0;
 	}
 	return -1;
@@ -291,39 +292,49 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
 {
-	//returns true only if contents were successfully set
+	//returns true only if contents are already locked
 	if (__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST) )
 	{
 		//save the context
 		//set scheduler context to null
 		//yield
+		//
 		mutex_enqueue(scheduler->current, mutex);
 		scheduler->current->is_waiting = true;
 		printf("failed to lock\n");
 		my_pthread_yield();
 		return -1;
 	}
-	return 0;
-	
+	//is the pointer arithmetic right? p sure it is just want to double check
+	mutex -> currThread = scheduler->current;
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex) 
 {
-	if (mutex -> isLocked == false)
+	
+	//NEED TO PUT THIS IN SYS MODE
+	//in case mutex wasn't actually locked before, or the thread trying to unlock it isn't the one that set the lock
+	if (mutex->currThread != scheduler->current)
 	{
 		return -1;
 	}
 	else
 	{
-		mutex -> isLocked = false;
 		if (mutex -> waitQ != NULL)
 		{
 			threadNode * curr = mutex_dequeue(mutex);
 			if (curr != NULL)
 			{
+				curr -> next = NULL;
+				mutex -> currThread = curr;
 				enqueue(curr);
+			}
+			else
+			{
+				__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST);
+				mutex->currThread = NULL;
 			}
 		}
 	}
