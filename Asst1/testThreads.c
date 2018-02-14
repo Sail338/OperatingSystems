@@ -11,13 +11,13 @@ int testFunc(void *  val){
     for(i = 0; i < 200000; i++){
         fprintf(fp,"IN THREAD %d: Current Val: %d\n",*((int*)val),i);
     }
-    if(*((int*)val) >= 100){
-        int v = *((int*)val);
-        int z;
-        for(z = v-100; z < v; z++){
-            my_pthread_join(list[z],NULL);
-        }
-    }
+    //if(*((int*)val) >= 100){
+    //    int v = *((int*)val);
+    //    int z;
+    //    for(z = v-100; z < v; z++){
+    //        my_pthread_join(list[z],NULL);
+    //    }
+    //}
     fprintf(fp,"I WAITED ON THE LAST 100 THREADS!\n");
     fclose(fp);
     return 0;

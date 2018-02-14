@@ -169,6 +169,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	    scheduler->SYS = false;		
 		
 	}
+    __atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
 	//create a threadNode
 	threadNode * node = NULL;
 	node = createNewNode(node,0,1,(double)time(NULL),thread,function,arg);
@@ -178,6 +179,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
 	 * **/
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	if(init == 0){
 			init = 1;
 		    setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
@@ -341,8 +343,8 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex)
 				curr -> next = NULL;
 				curr -> is_waiting = false;
 				mutex -> currThread = curr;
-
-				scheduler -> current = curr;
+                enqueue(curr);
+				//scheduler -> current = curr;
 			    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 				my_pthread_yield();
 			}

@@ -10,18 +10,20 @@ int func(int val){
      int i = 0;
      while(i < 200000000){
         i+=1;
-     }
+     } 
+     printf("I should happen first!\n");
 	 my_pthread_mutex_unlock(&mutex);
-     printf("Finished Unlocked\n");
 	//swapcontext(&(scheduler->tq[0]->front->thread),&(scheduler->current->thread));    
 	//my_pthread_exit(NULL);
 	return  0;
 
 }
 int func1(int val){
-    my_pthread_mutex_lock(&mutex);
-    indicator+=1;
-    printf("%d\t%d\n",indicator,val);
+    int ret = my_pthread_mutex_lock(&mutex);
+    if(ret == -1){
+        indicator+=1;
+        printf("%d\t%d\n",indicator,val);
+    }
     return 0;
 }
 
