@@ -18,9 +18,6 @@ int tCount=0;
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
-    if(__atomic_load_n(&(scheduler->SYS),__ATOMIC_SEQ_CST)){
-        return;
-    }
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
 	threadNode * curr = scheduler->current;
 	curr->numSlices --;
@@ -29,7 +26,9 @@ void normal_sig_handler(int signum)
 		curr->qlevel = (curr->qlevel+1)%LEVELS;
 		curr->numSlices = curr->qlevel+1;
         //schedulerString();
-		yield_sig_handler(3);
+    	if(!__atomic_load_n(&(scheduler->SYS),__ATOMIC_SEQ_CST)){
+			yield_sig_handler(3);
+		}
 	}
     else{
         setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);
@@ -170,6 +169,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	    scheduler->SYS = false;		
 		
 	}
+    __atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
 	//create a threadNode
 	threadNode * node = NULL;
 	node = createNewNode(node,0,1,(double)time(NULL),thread,function,arg);
@@ -179,6 +179,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	 *
 	 *We have init check twice because we want to start the timer AFTER the node has been created and enqueued
 	 * **/
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	if(init == 0){
 			init = 1;
 		    setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);	
@@ -288,6 +289,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	{
 		mutex -> isLocked = false;
 		mutex -> waitQ = NULL;
+		mutex -> currThread = NULL;
 		return 0;
 	}
 	return -1;
@@ -297,42 +299,69 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t * mutex) 
 {
-	//returns true only if contents were successfully set
+	
+    __atomic_store_n(&(scheduler->SYS),true, __ATOMIC_SEQ_CST);
+	//returns true only if contents are already locked
 	if (__atomic_test_and_set(&(mutex->isLocked), __ATOMIC_SEQ_CST) )
 	{
 		//save the context
 		//set scheduler context to null
 		//yield
+		//
 		mutex_enqueue(scheduler->current, mutex);
 		scheduler->current->is_waiting = true;
 		printf("failed to lock\n");
+    	__atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 		my_pthread_yield();
 		return -1;
 	}
-	return 0;
-	
+	//is the pointer arithmetic right? p sure it is just want to double check
+	mutex -> currThread = scheduler->current;
+    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex) 
 {
-	if (mutex -> isLocked == false)
+	
+    __atomic_store_n(&(scheduler->SYS),true, __ATOMIC_SEQ_CST);
+	//NEED TO PUT THIS IN SYS MODE
+	//in case mutex wasn't actually locked before, or the thread trying to unlock it isn't the one that set the lock
+	if (mutex->currThread != scheduler->current)
 	{
+    	__atomic_store_n(&(scheduler->SYS), false, __ATOMIC_SEQ_CST);
 		return -1;
 	}
 	else
 	{
-		mutex -> isLocked = false;
 		if (mutex -> waitQ != NULL)
 		{
 			threadNode * curr = mutex_dequeue(mutex);
 			if (curr != NULL)
 			{
-				enqueue(curr);
+				curr -> next = NULL;
+				curr -> is_waiting = false;
+				mutex -> currThread = curr;
+                enqueue(curr);
+				//scheduler -> current = curr;
+			    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
+				my_pthread_yield();
+			}
+			else
+			{
+				__atomic_store_n(&(mutex->isLocked),false, __ATOMIC_SEQ_CST);
+				mutex->currThread = NULL;
 			}
 		}
+		else
+		{
+			__atomic_store_n(&(mutex->isLocked),false, __ATOMIC_SEQ_CST);
+			mutex ->currThread = NULL;
+		}
 	}
+
+    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 	return 0;
 };
 

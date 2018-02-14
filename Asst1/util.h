@@ -48,6 +48,7 @@ typedef struct my_pthread_mutex_t
 {
 	bool isLocked;
 	threadQ * waitQ;
+	threadNode * currThread;
 	//may want to also include pointer to currently executing thread
 } my_pthread_mutex_t;
 
