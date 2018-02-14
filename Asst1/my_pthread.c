@@ -18,9 +18,6 @@ int tCount=0;
 //this is scheduled to run every 25 milliseconds
 void normal_sig_handler(int signum)
 {
-    if(__atomic_load_n(&(scheduler->SYS),__ATOMIC_SEQ_CST)){
-        return;
-    }
 	setitimer(ITIMER_VIRTUAL, 0, NULL);
 	threadNode * curr = scheduler->current;
 	curr->numSlices --;
@@ -29,7 +26,9 @@ void normal_sig_handler(int signum)
 		curr->qlevel = (curr->qlevel+1)%LEVELS;
 		curr->numSlices = curr->qlevel+1;
         //schedulerString();
-		yield_sig_handler(3);
+    	if(!__atomic_load_n(&(scheduler->SYS),__ATOMIC_SEQ_CST)){
+			yield_sig_handler(3);
+		}
 	}
     else{
         setitimer(ITIMER_VIRTUAL,&scheduler->timer,NULL);
