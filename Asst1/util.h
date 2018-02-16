@@ -15,14 +15,13 @@
 //Has to keep in mind how many levels in the Scheduler
 #define MAXTHD 10
 /* define your data structures here: */
-typedef struct threadNode
-{
-	struct threadNode * next;
+ typedef struct threadControlBlock {
+	struct threadControlBlock * next;
 	ucontext_t thread;
 	double spawnTime;
     uint tid;
     int qlevel;
-    struct threadNode * waitingNodes;
+    struct threadControlBlock * waitingNodes;
 	//for prioritization of old threads. when something gets pushed down in the MLPQ, increase this
 	//so that when it comes back to the top after a while, it gets to run for longer
 	int numSlices;
@@ -31,8 +30,8 @@ typedef struct threadNode
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
 	bool is_waiting;
-} threadNode;
-
+	 } tcb;
+typedef tcb  threadNode;
 typedef struct threadQ
 {
     threadNode * front;

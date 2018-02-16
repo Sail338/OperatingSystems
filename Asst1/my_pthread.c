@@ -283,7 +283,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
 {
-	mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
+	//mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
 	{
@@ -383,10 +383,10 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex)
 		}
 	}
 	free (mutex->waitQ);
-	free (mutex);
+//	free (mutex);
     __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 	my_pthread_yield();
-};
+}
 
 
 

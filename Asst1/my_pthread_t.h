@@ -23,9 +23,6 @@
 #include <time.h>
 typedef threadNode * my_pthread_t;
 
-typedef struct threadControlBlock {
-	/* add something here */
-} tcb; 
 
 
 // Feel free to add your own auxiliary data structures
