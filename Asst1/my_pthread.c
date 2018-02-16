@@ -222,7 +222,9 @@ void my_pthread_exit(void *value_ptr)
         while(nextOne != NULL){
             nextOne = toBeDeleted->waitingNodes->next;
             //printf("%x\n",toBeDeleted->waitingNodes);
+			
             toBeDeleted->waitingNodes->next = NULL;
+			toBeDeleted -> waitingNodes -> did_join = false;
             enqueue(toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes = nextOne;
 		
