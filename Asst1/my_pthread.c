@@ -377,6 +377,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex)
 		{
 			temp = curr->next;
 			curr->next = NULL;
+			curr->is_waiting = false;
 			enqueue(curr);
 			curr = temp;
 		}
