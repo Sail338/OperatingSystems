@@ -36,15 +36,14 @@ void normal_sig_handler(int signum)
 
 }
 
-void * wrapper_function(void*(*start)(void*),void*args){
+void * wrapper_function(void*(*start)(void*),void*args)
+{
     start(args);
     my_pthread_exit(NULL);
 }
 
-
-
-
-void schedulerString(){
+void schedulerString()
+{
     printf("Current Context Address %x\n",scheduler->current);
     printf("Current QLevel: %d\n",scheduler->current->qlevel);
     //Print out each Queue
@@ -62,7 +61,6 @@ void schedulerString(){
         printf("NULL\n\n");
     }
 }
-
 
 void yield_sig_handler(int signum)
 {
@@ -208,7 +206,8 @@ int my_pthread_yield()
 	return 0;
 };
 
-void my_pthread_exit(void *value_ptr) {
+void my_pthread_exit(void *value_ptr) 
+{
     threadNode * toBeDeleted = NULL;
     toBeDeleted = scheduler->current;
     //1. Deal with Waiting
@@ -223,7 +222,9 @@ void my_pthread_exit(void *value_ptr) {
         while(nextOne != NULL){
             nextOne = toBeDeleted->waitingNodes->next;
             //printf("%x\n",toBeDeleted->waitingNodes);
+			
             toBeDeleted->waitingNodes->next = NULL;
+			toBeDeleted -> waitingNodes -> did_join = false;
             enqueue(toBeDeleted->waitingNodes);
             toBeDeleted->waitingNodes = nextOne;
 		
@@ -278,7 +279,6 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	return -1;
     
 }
-
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
@@ -368,7 +368,24 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t * mutex)
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) 
 {
-	return 0;
+    __atomic_store_n(&(scheduler->SYS),true, __ATOMIC_SEQ_CST);
+	if (mutex -> waitQ != NULL)
+	{
+		threadNode * curr = mutex->waitQ -> front;
+		threadNode * temp;
+		while (curr != NULL)
+		{
+			temp = curr->next;
+			curr->next = NULL;
+			curr->is_waiting = false;
+			enqueue(curr);
+			curr = temp;
+		}
+	}
+	free (mutex->waitQ);
+	free (mutex);
+    __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
+	my_pthread_yield();
 };
 
 
