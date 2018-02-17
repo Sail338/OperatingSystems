@@ -38,16 +38,10 @@ void normal_sig_handler(int signum)
 
 void * wrapper_function(void*(*start)(void*),void*args)
 {
-	void *ret = NULL;
-    ret = (void*)start(args);
-	if (ret == NULL)
-	{
-    	my_pthread_exit(NULL);
-	} 
-	else
-	{
-		my_pthread_exit(ret);	
-	}
+	void ** ret = (void**)malloc(sizeof(int*));
+    *ret = (void*)start(args);
+
+	my_pthread_exit(ret);	
 }
 
 void schedulerString()
