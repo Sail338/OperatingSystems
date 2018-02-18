@@ -22,7 +22,8 @@
 #define pthread_mutex_lock my_pthread_mutex_lock
 #define pthread_mutex_unlock my_pthread_mutex_unlock
 #define pthread_mutex_destroy my_pthread_mutex_destroy
-#define pthread_t my_pthread_t;
+#define pthread_t my_pthread_t
+#define pthread_mutex_t my_pthread_mutex_t
 /* define your data structures here: */
  typedef struct threadControlBlock {
 	struct threadControlBlock * next;
