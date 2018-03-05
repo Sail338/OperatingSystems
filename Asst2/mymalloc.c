@@ -185,7 +185,7 @@ void initArray(char* myBlock)
 size_t validateInput(size_t numRequested)
 {
 	//must be within array bounds
-	if (numRequested<=0 || numRequested>4998)
+	if (numRequested<=0 || numRequested>7999998)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
