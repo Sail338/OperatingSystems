@@ -174,11 +174,11 @@ boolean myfree(void* target, char* file, int line)
 void initArray(char* myBlock)
 {
 	int i;
-	for (i=0; i<5000; i++)
+	for (i=0; i<8000000; i++)
 	{
 		myBlock[i] = '0';
 	}
-	*(unsigned short*)myBlock = (unsigned short)4998;
+	*(unsigned short*)myBlock = (unsigned short)7999998;
 	isInitialized = TRUE;
 }
 
