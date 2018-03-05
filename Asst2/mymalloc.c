@@ -174,18 +174,18 @@ boolean myfree(void* target, char* file, int line)
 void initArray(char* myBlock)
 {
 	int i;
-	for (i=0; i<8000000; i++)
+	for (i=0; i<5000; i++)
 	{
 		myBlock[i] = '0';
 	}
-	*(unsigned short*)myBlock = (unsigned short)7999998;
+	*(unsigned short*)myBlock = (unsigned short)4998;
 	isInitialized = TRUE;
 }
 
 size_t validateInput(size_t numRequested)
 {
 	//must be within array bounds
-	if (numRequested<=0 || numRequested>7999998)
+	if (numRequested<=0 || numRequested>4998)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
