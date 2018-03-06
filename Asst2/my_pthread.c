@@ -193,7 +193,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	if(errno !=0){
 		return -1;
 	}
-    my_pthread_yield();
+    //my_pthread_yield();
+    //THE LINE ABOVE IS GARBAGE
 	return 0;
 };
 
