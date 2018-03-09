@@ -1,6 +1,40 @@
 #include "page_alloc.h"
 #include <stdlib.h>
 #include <stdio.h>
+int getKey(void * virtualAddr){
+    void * ptr = myBlock + OSLAND;
+    int pageSize = sysconf(_SC_PAGE_SIZE);
+    int i = 0;
+    int numOfPages = (8000000000 - OSLAND) / pageSize;
+    while(i < numOfPages){
+        if ptr == virtualAddr:
+            return i;
+        ptr += pageSize;
+        i += 1;
+    }
+    return -1;
+}
+
+int swap(page * p1, page * p2)
+{
+    int pageSize = sysconf(_SC_PAGE_SIZE);
+    char temp[pageSize];
+    memcpy(temp,p1->physical_addr,pageSize);
+    memcpy(p1->physical_addr,p2->physical_addr,pageSize);
+    memcpy(p2->physical_addr,temp,pageSize);
+    void * t = p1->physical_addr;
+    p1->physical_addr = p2->physical_addr;
+    p2->physical_addr = t;
+    int p1Info = getKey(p1->virtual_addr);
+    int p2Info = getKey(p2->virtual_addr);
+    page * tempPtr = pageTable->pages+p1Info;
+    pageTable->pages+p1Info = pageTable->pages+p2Info;
+    pageTable->pages+p2Info = tempPtr;
+    
+}
+
+
+
 
 //TODO: make page init function 
 
@@ -143,7 +177,7 @@ bool myfree(void* target, char* file, int line)
 void page_init(page * curr_page)
 {
 	int i = 0;
-	int capacity = curr_page -> capacity;;
+	int capacity = curr_page -> capacity;
 	for (i=0; i < capacity; i++)
 	{
 		myBlock[i] = '0';

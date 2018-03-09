@@ -7,7 +7,10 @@
 typedef enum {FALSE, TRUE} boolean;
 
 //malloc array - holds metadata as a short and spaces allocated for user data
-static char myBlock [5000];
+int initblock;
+
+static char myBlock;
+
 
 //returns pointer to block of memory if sufficient space remains in myBlock
 void* mymalloc(size_t numRequested, char* file, int line);
