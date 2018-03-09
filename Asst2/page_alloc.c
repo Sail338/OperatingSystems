@@ -2,6 +2,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "until.h"
+page * findFreePages()
+{
+    int pageSize = sysconf(_SC_PAGE_SIZE);
+    void * ptr = myBlock + OSLAND;
+    //Page has all of its space 
+    if((page*)ptr->capacity == pageSize)
+    {
+    
+    }
+}
 int getKey(void * virtualAddr){
     void * ptr = myBlock + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);

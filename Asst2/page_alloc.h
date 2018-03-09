@@ -53,9 +53,12 @@ pageTable * PT;
 int getKey();
 
 int defragPages();
-
+//First find free contigous pages -> if none avaliable use the freePages algorithm and repeat the algorithm, if there is still none and no more pages can be freed -> start choosing victims
 page * findFreePages();
-
+//This algorithm goes through the entire block as frees up pages that can be freed!
+//If a page is connected to another page an algorithm is put in place to detach the page from the contgious block
 int freePages();
 
 int swap(page*, page*);
+
+page * victim();
