@@ -10,6 +10,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <string.h>
 #define LEVELS  5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
@@ -24,6 +25,7 @@
 #define pthread_mutex_destroy my_pthread_mutex_destroy
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t
+#define MEM 64000
 /* define your data structures here: */
  typedef struct threadControlBlock {
 	struct threadControlBlock * next;
@@ -42,6 +44,7 @@
 	bool is_waiting;
 	 } tcb;
 typedef tcb  threadNode;
+typedef threadNode * my_pthread_t;
 typedef struct threadQ
 {
     threadNode * front;
@@ -85,4 +88,6 @@ threadNode* mutex_dequeue(my_pthread_mutex_t *);
 void thread_q_init(threadNode *,threadQ*);
 void yield_sig_handler(int signum);
 void normal_sig_handler();
+threadNode* createNewNode(threadNode*,int,int,double,my_pthread_t *,void*(*function)(void*),void*);
+int initScheduler();
 #endif

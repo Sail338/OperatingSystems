@@ -1,6 +1,7 @@
 #include "page_alloc.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "until.h"
 int getKey(void * virtualAddr){
     void * ptr = myBlock + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
@@ -33,6 +34,40 @@ int swap(page * p1, page * p2)
     
 }
 
+int initialize()
+{
+    int pageSize = sysconf(_SC_PAGE_SIZE);
+    myBlock = memalign(pageSize,8000000000);
+    int i = 0;
+    for(int i = 0; i < 8000000000; i++)
+    {
+        myBlock[i] = 0;
+    }
+    int numOfPages = (8000000000-OSLAND)/pageSize;
+    initblock = 1;
+    PT = osmalloc(myBlock,sizeof(pageTable));
+    PT->freePages = numOfPages;
+    PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
+    int i;
+    void * ptr = myBlock + OSLAND;
+    for(i = 0; i < numOfPages; i++){
+        PT->pages[i] = osmalloc(myBlock,sizeof(page));
+        PT->pages[i]->physical_addr = ptr;
+        PT->pages[i]->virtual_addr = ptr;
+        PT->pages[i]->next = NULL;
+        PT->pages[i]->prev = NULL;
+        PT->pages[i]->owner = NULL;
+        PT->pages[i]->space_remaining = pageSize;
+        PT->pages[i]->capacity = pageSize;
+        PT->pages[i]->is_initialized= 0;
+        i+=1;
+        ptr += pageSize;
+    }
+    if(init == 0)
+    {
+        initScheduler();
+    }
+}
 
 
 

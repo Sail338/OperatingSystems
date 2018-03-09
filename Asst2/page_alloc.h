@@ -28,7 +28,7 @@ typedef struct pageTable
 {
     page ** pages;
     short freePages;
-}
+}pageTable;
 
 
 //returns pointer to block of memory if sufficient space remains in myBlock
@@ -47,6 +47,8 @@ void* mallocDetails(size_t numRequested, char* index);
 size_t validateInput(page* curr_page, size_t numRequested);
 
 void initArray(char*);
+
+pageTable * PT;
 
 int getKey();
 
