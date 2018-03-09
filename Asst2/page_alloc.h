@@ -11,32 +11,28 @@ static char myBlock [5000];
 typedef struct page
 {
 	threadNode * thread;
-	page * next_page;
-	page * prev_page;
+	struct page * next_page;
+	struct page * prev_page;
 	//data type? hello?
-	void * physical_addr;
+	void * virtual_addr;
 	int space_remaining;
 	int capacity;
-	boolean is_initialized;
-	char * memBlock;
+	bool is_initialized;
+	void * memBlock;
 } page;
-
-
-
 
 //returns pointer to block of memory if sufficient space remains in myBlock
 void* mymalloc(size_t numRequested, char* file, int line);
 
-bool checkSpace(char* myBlock, size_t numReq);
-
-char* findSpace(char* myBlock, unsigned short numReq);
+char* findSpace(page * curr_page, int numReq);
 //merges contiguous blocks of free memory into a single large block 
-void defrag(char* myBlock);
+void defrag(page * curr_page);
 
-bool myfree (void* p, char* file, int line);
+bool myfree (void* target, page* curr_page);
 
-void* mallocDetails(size_t numRequested, char* index);
+void* mallocDetails(size_t numRequested, char* meta_block);
 
 size_t validateInput(page* curr_page, size_t numRequested);
 
+//THIS SHOULD BE A WRAPPER FUNCTION, *NOT* A PAGE FUNCTION
 void initArray(char* myBlock);
