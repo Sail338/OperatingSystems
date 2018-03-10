@@ -9,7 +9,7 @@ page * findFreePages()
     //Page has all of its space 
     if((page*)ptr->capacity == pageSize)
     {
-    
+          
     }
 }
 int getKey(void * virtualAddr){
