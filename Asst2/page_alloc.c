@@ -15,13 +15,14 @@ int getKey(void * virtualAddr)
     void * ptr = DRAM + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
-    int numOfPages = (8000000000 - OSLAND) / pageSize;
+    int numOfPages = (8388608 - OSLAND) / pageSize;
     while(i < numOfPages){
-        if (ptr == virtualAddr){
+        if (ptr == virtualAddr)
+		{
             return i;
         ptr += pageSize;
         i += 1;
-			}
+		}
     }
     return -1;
 }
@@ -220,23 +221,49 @@ bool page_free(void * target, bool os_mode)
 	//FIRST THING YOU DO IF OS MODE IS FALSE IS CALL THE HELPER FUNCTION TO FIND THE PAGE
 	//calc boundaries	
 	void * end;
+	void* targetMeta = target - 4;
 	if (os_mode == true)
 	{
-		end = (void *)(DRAM + OSLAND);
+		if (targetMeta >= (void *)DRAM && targetMeta < (void *)(DRAM+OSLAND-5))
+		{
+			if (segment_free(targetMeta) == true)
+				return true;
+		}
 	}
-	void* targetMeta = target - 4;
+	else
+	{
+		page * curr_page = (page *) (find_page(target));
+		if (segment_free(targetMeta) == true)
+		{
+			curr_page->space_remaining += *(int*)targetMeta + 4;
+			return true;
+		}
+	}
 
 	//check that the section you're trying to free is within os space/user page bounds
-	//THIS CODE SEGMENT IS JUST FOR THE OS RIGHT NOW
-	if (targetMeta >= (void *)DRAM && targetMeta < (void *)(DRAM+OSLAND-5))
-	{
-		if (segment_free(targetMeta) == true)
-			return true;
-	}
 	
 	printf ("INVALID ADDRESS, CANNOT FREE\n");
 	return false;
 }
+
+//this is used in user free functions; it finds the page which contains the pointer they're trying to free
+void* find_page(void * target)
+{
+	void * index = (void *)(DRAM + OSLAND);
+	int pageSize = sysconf(_SC_PAGE_SIZE);
+    int pageNum = 0;
+    int numPages = (8388608 - OSLAND) / pageSize;
+	for (pageNum=0; pageNum<numPages; pageNum++)
+	{
+		if (target >= index && target <= index + pageSize)
+		{
+			return (void *)(PT->pages[pageNum]);
+		}
+		index += pageSize;
+	}
+}
+
+
 /**
  *Helper function that page_free uses to free a block
  *checks if metadata is ine use and decrements one so metadata is even and is usable now
@@ -336,7 +363,8 @@ bool os_free(void * target)
  *
  *
  * */
-page *giveNewPage(){
+page *giveNewPage()
+{
 	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
@@ -366,7 +394,8 @@ page *giveNewPage(){
 		return NULL;	
 
 }
-void *mymalloc(size_t numRequested){
+void *mymalloc(size_t numRequested)
+{
 	/**
 	 *
 	 *The function that the user is going to call

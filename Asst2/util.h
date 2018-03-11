@@ -139,7 +139,7 @@ void*mallocDetails(int numReq, char * memBlock);
 size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
 
 void initArray(char*);
-
+void * find_page(void *);
 pageTable * PT;
 int DRAM_INIT;
 int PAGE_TABLE_INIT;
