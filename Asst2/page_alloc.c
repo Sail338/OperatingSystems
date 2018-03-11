@@ -144,7 +144,6 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 			//return pointer to start of META (not user!) data block if sufficient size free block is found
 			if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
 			{
-				printf("%d",*(int *) currMeta);
 				return currMeta;
 			}
 			else
@@ -261,7 +260,7 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 
 void* mallocDetails(int numReq, char* memBlock)
 {
-	int total = *(unsigned int*)memBlock;
+	int total = *( int*)memBlock;
 	if (total > numReq)
 	{
 		void * leftovers = (int *)(memBlock)+1+numReq;
@@ -272,9 +271,9 @@ void* mallocDetails(int numReq, char* memBlock)
 	return (void*)(memBlock+4*sizeof(char));
 }
 
-char* osmalloc(int bytes){
-	char *x =page_alloc(NULL,bytes,true);	
-	if(x >= DRAM + OSLAND){
+void* osmalloc(int bytes){
+	void  *x =page_alloc(NULL,bytes,true);	
+	if(x == DRAM + OSLAND){
 		return NULL;
 	}
 	return x;
