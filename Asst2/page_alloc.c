@@ -9,7 +9,9 @@ page * findFreePages()
           
     }
 }
-int getKey(void * virtualAddr){
+
+int getKey(void * virtualAddr)
+{
     void * ptr = myBlock + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
@@ -118,14 +120,14 @@ char* findSpace(page * curr_page, int numReq)
 	//tracks how far down the array has been traveled
 	int consumed = 0;
 	//keeps trace of value contained in current metadata block
-	int currMeta = 0;
+	int * currMeta = curr_page -> memBlock;
 	
 	while(consumed < curr_page -> capacity)
 	{
-		currMeta = (int)curr_page -> memBlock;
+		*currMeta = *(int *)curr_page -> memBlock;
 		//return pointer to start of META (not user!) data block if sufficient size free block is found
 		//TOOK AWAY THE PLUS TWO HERE
-		if((currMeta%2==0) && (currMeta>=numReq))
+		if((*(currMeta)%2==0) && (*(currMeta)>=numReq))
 		{
 //			printf("head block: %hu\n", currMeta);
 			return myBlock;
@@ -133,7 +135,7 @@ char* findSpace(page * curr_page, int numReq)
 		else
 		{
 			//catches both free and used jumps through mod arith
-			unsigned short increment = currMeta - (currMeta%2) + 2;
+			unsigned short increment = *currMeta - (*(currMeta)%2) + 2;
 //			printf("currMeta: %hu \t increment: %hu \n", currMeta, increment);
 			myBlock += increment*sizeof(char);
 			//increment distanace traveled
@@ -184,11 +186,6 @@ void defrag (page * curr_page)
 //return boolean true for success and failure
 bool myfree(void* target, char* file, int line)
 {
-	if (!isInitialized)
-		{
-			initArray(myBlock);
-			isInitialized = TRUE;
-		}
 //	printf("in target: %p \n", (void*)target);
 //	printf ("target: %hu \n", *(unsigned short*)(target-2));
 	void* targetFree = target - 2;
@@ -208,11 +205,11 @@ bool myfree(void* target, char* file, int line)
 		{
 //			printf("merp\n");
 			*(unsigned short*)ptr -= 1;
-			return TRUE;
+			return true;
 		}
 	}
 	printf("ERROR: INVALID ADDRESS, CANNOT FREE\n");
-	return FALSE;
+	return false;
 }
 
 //set initial amount of free space and zero out the array in case of garbage null terminators

@@ -40,7 +40,7 @@ bool checkSpace(char* myBlock, size_t numReq);
 
 char* findSpace(char* myBlock, unsigned short numReq);
 //merges contiguous blocks of free memory into a single large block 
-void defrag(char* myBlock);
+void defrag(page * curr_page);
 
 bool myfree (void* p, char* file, int line);
 
