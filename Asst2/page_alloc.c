@@ -47,7 +47,7 @@ int initialize()
     int pageSize = sysconf(_SC_PAGE_SIZE);
     myBlock  = memalign(pageSize,8388608);
     int i = 0;
-    for(int i = 0; i < 8388608; i++)
+    for(i = 0; i < 8388608; i++)
     {
         myBlock[i] = 0;
     }
