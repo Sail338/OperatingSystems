@@ -272,9 +272,9 @@ void* mallocDetails(int numReq, char* memBlock)
 	return (void*)(memBlock+4*sizeof(char));
 }
 
-void* osmalloc(int bytes){
-	void *x =page_alloc(NULL,bytes,true);	
-	if(x == DRAM + OSLAND){
+char* osmalloc(int bytes){
+	char *x =page_alloc(NULL,bytes,true);	
+	if(x >= DRAM + OSLAND){
 		return NULL;
 	}
 	return x;
