@@ -89,10 +89,12 @@ int initialize()
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
-	if(DRAM_INIT ==0){
+	if(DRAM_INIT ==0)
+	{
 			initialize();
 			DRAM_INIT =1;
-		}
+	}
+	numRequested = validateInput(curr_page, numRequested, os_mode);
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
 	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
@@ -131,7 +133,7 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 		 currMeta = curr_page -> memBlock;
 	}
 	
-	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
+	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 		
 		while(consumed < maxSize)
 		{
@@ -247,15 +249,16 @@ void page_init(page * curr_page)
 
 size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 {
-	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
+	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 	//must be within array bounds
 	if (numRequested <= 0 || numRequested >= maxSize)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
 		}
+	numRequested += numRequested %2;
 	//allocation must be even
-	return (numRequested + numRequested%2);
+	return numRequested;
 }
 
 void* mallocDetails(int numReq, char* memBlock)
