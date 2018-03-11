@@ -46,7 +46,7 @@ int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
     myBlock  = memalign(pageSize,8388608);
-    int i = 0;
+    int i;
     for(i = 0; i < 8388608; i++)
     {
         myBlock[i] = 0;
@@ -56,7 +56,6 @@ int initialize()
     PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;
     PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
-    int i;
     void * ptr = myBlock + OSLAND;
     for(i = 0; i < numOfPages; i++){
         PT->pages[i] = osmalloc(myBlock,sizeof(page));
