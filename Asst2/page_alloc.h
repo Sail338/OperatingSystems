@@ -6,7 +6,7 @@
 #include "util.h"
 #define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) myfree(x, __FILE__, __LINE__)
-#define OSLAND 5000000
+#define OSLAND 500000
 
 //malloc array - holds metadata as a short and spaces allocated for user data
 //Need to memalign myBlock so do this in init
@@ -36,7 +36,7 @@ void * page_alloc(page * curr_page, int numRequested, bool os_mode);
 
 char* findSpace(page * curr_page, int numReq, bool os_mode);
 //mergesi contiguous blocks of free memory into a single large block 
-void defrag(page * curr_page);
+void defrag(page * curr_page,bool);
 
 bool myfree (void* p, char* file, int line);
 
@@ -47,7 +47,7 @@ size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
 void initArray(char*);
 
 pageTable * PT;
-
+int DRAM_INIT;
 int getKey();
 
 int defragPages();
@@ -60,3 +60,4 @@ int freePages();
 int swap(page*, page*);
 
 page * victim();
+void * osmalloc(int);

@@ -76,7 +76,7 @@ int initialize()
     }*/
     if(init == 0)
     {
-        initScheduler();
+        //initScheduler();
     }
 }
 
@@ -88,6 +88,10 @@ int initialize()
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
+	if(DRAM_INIT ==0){
+			initialize();
+			DRAM_INIT =1;
+		}
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
 	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
@@ -97,7 +101,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	//	return 0;
 	if (thatSoMeta == NULL)
 	{
-		defrag(curr_page);
+		defrag(curr_page,os_mode);
 		printf("defragged\n");
 		thatSoMeta = findSpace(curr_page, numRequested, os_mode);
 	}
@@ -139,6 +143,7 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 			//return pointer to start of META (not user!) data block if sufficient size free block is found
 			if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
 			{
+				printf("%d",*(int *) currMeta);
 				return currMeta;
 			}
 			else
@@ -158,8 +163,11 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 //find contiguous blocks of free space and combine them to a single large block
 
 //THIS IS DEFINITELY FULL OF BUGS WITH POINTER INCREMENTATION
-void defrag (page * curr_page)
+void defrag (page * curr_page,bool os_mode)
 {
+	if(os_mode){
+			return;
+		}
 	int consumed = 0;
 	int * home = (int *) (curr_page -> memBlock);
 	int * probe = (int *) (curr_page -> memBlock);
@@ -263,6 +271,10 @@ void* mallocDetails(int numReq, char* memBlock)
 	return (void*)(memBlock+4*sizeof(char));
 }
 
-/*void* osmalloc(int bytes){
-;	
-}*/
+void* osmalloc(int bytes){
+	void *x =page_alloc(NULL,bytes,true);	
+	if(x == DRAM + OSLAND){
+		return NULL;
+	}
+	return x;
+}
