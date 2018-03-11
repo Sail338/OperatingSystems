@@ -43,7 +43,14 @@ int swap(page * p1, page * p2)
     PT->pages[p2Info] = tempPtr;
     
 }
-
+/**
+ *
+ *
+ * Initializes DRAM , gives us 8 MB with melaign and then 0s out OSSPACE
+ * and then sets the metadata in OSSPACE to the appropriate amount
+ *
+ *
+ * */
 int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
@@ -58,9 +65,15 @@ int initialize()
 }
 
 
+/**
+ *@param curr_page a empty page or a page a thread owns with enough space
+ @param numRequested number of blocks to be allocated
+ *@param os_mode an OSMODE flag which tells page_alloc to allocate in osland,curr_page should be null and is ignored if this flag is set to true
 
-//TODO: make page init function 
-
+ *page_alloc takes in a pointer to a page and allocates the appropriate amount
+ *assumes that the block given is also contigous so page_alloc does NOT do any page swapping
+ *
+ * **/
 
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
@@ -139,6 +152,7 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 //THIS IS DEFINITELY FULL OF BUGS WITH POINTER INCREMENTATION
 void defrag (page * curr_page,bool os_mode)
 {
+		//currently we dont defrag in os_mode
 	if(os_mode){
 			return;
 		}
@@ -179,6 +193,15 @@ void defrag (page * curr_page,bool os_mode)
 
 
 //return boolean true for success and failure
+/**
+ *@param target  target pointer
+ @param os_mode flag if we are in os_mode or not
+ the main function our wrapper function will call to free a block,
+ free() calls os_mode = false with a page and if within a page, we calcualte the apporpate page
+ os_free is for the OS ONLY and it works like system free expect with a bigger chunk
+ *
+ *
+ **/
 bool page_free(void * target, bool os_mode)
 {
 	//FIRST THING YOU DO IF OS MODE IS FALSE IS CALL THE HELPER FUNCTION TO FIND THE PAGE
@@ -201,7 +224,11 @@ bool page_free(void * target, bool os_mode)
 	printf ("INVALID ADDRESS, CANNOT FREE\n");
 	return false;
 }
-
+/**
+ *Helper function that page_free uses to free a block
+ *checks if metadata is ine use and decrements one so metadata is even and is usable now
+ *
+ * */
 bool segment_free(void * target)
 {
 	if (*(int *) target %2 == 1)
@@ -240,6 +267,12 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 	return numRequested;
 }
 
+/**
+ *@param numReq number of bytes passed requested
+ @param the block of memory operating os (for OSmod its osland)
+ *Helper function to update metadatas
+ *
+ * */
 void* mallocDetails(int numReq, char* memBlock)
 {
 	int total = *( int*)memBlock;
@@ -253,12 +286,20 @@ void* mallocDetails(int numReq, char* memBlock)
 	return (void*)(memBlock+4*sizeof(char));
 }
 
+/**
+ *Function used by scheduler, and our memory manager ONLY to allocate in 
+ os land, the user cant call/shouldnt call this
+ *
+ *
+ * **/
 void* osmalloc(int bytes)
 {
 
+	//inits DRAM if it hasnt already be init, an
 	if(DRAM_INIT ==0)
 
 	{
+		
 			initialize();
 			DRAM_INIT =1;
 	}
@@ -277,13 +318,19 @@ bool os_free(void * target)
 {
 	return page_free(target, true);
 }
-
+/**
+ *@param number of bytes we want
+ * Our actual malloc function (user calls this one)
+ *
+ *
+ * */
 void *mymalloc(size_t bytes){
 	/**
 	 *
 	 *The function that the user is going to call
 	 * 
 	 * **/
+	//inits page table if it alreadt hasnt been
 	if(!PAGE_TABLE_INIT){
 		//initialize page table and then scheduler
 		
