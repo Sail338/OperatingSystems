@@ -6,8 +6,8 @@
 #include "util.h"
 int tCount=0;
 int initScheduler(){
-        scheduler = (Scheduler *)malloc(sizeof(Scheduler));
-		scheduler->tq = (threadQ **)malloc(sizeof(threadQ *) * LEVELS);
+        scheduler = (Scheduler *)osmalloc(sizeof(Scheduler));
+		scheduler->tq = (threadQ **)osmalloc(sizeof(threadQ *) * LEVELS);
 		int i;
 		for(i=0;i<LEVELS;i++){
 
@@ -31,8 +31,8 @@ int initScheduler(){
 threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawnTime,my_pthread_t *thread,void*(*function)(void*),void * arg)
 {
 	ucontext_t newthread;
-	//thread = malloc(sizeof(my_pthread_t));
-	node = (threadNode *)malloc(sizeof(threadNode));
+	//thread = osmalloc(sizeof(my_pthread_t));
+	node = (threadNode *)osmalloc(sizeof(threadNode));
 	node -> tid = tCount++;
 	node -> next = NULL;
 	node -> spawnTime = spawnTime; 
@@ -55,14 +55,14 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
         
 	    //we dont want anything to happen after thread is done
 		newthread . uc_link = 0;
-		newthread. uc_stack.ss_sp=malloc(MEM);
+		newthread. uc_stack.ss_sp=osmalloc(MEM);
 		newthread. uc_stack.ss_size=MEM;
  		newthread. uc_stack.ss_flags=0;
 		makecontext(&newthread,(void*)wrapper_function, 2,function,arg);
 		
 	}
 	
-	//node ->thread = malloc(sizeof(ucontext_t*));
+	//node ->thread = osmalloc(sizeof(ucontext_t*));
 	
     node->thread = newthread;
 	return node;
@@ -71,8 +71,8 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 
 
 /**
- *Enqueues a Node into the multi level queue. We assume the node has already been malloced the apprpirate level is already set
- *@param threadNode * Node  : A threadNode that has been malloced
+ *Enqueues a Node into the multi level queue. We assume the node has already been osmalloced the apprpirate level is already set
+ *@param threadNode * Node  : A threadNode that has been osmalloced
  *
  **/
 
@@ -82,7 +82,7 @@ void enqueue(threadNode *Node)
     threadQ* threadq = scheduler->tq[Node->qlevel];
     if(threadq == NULL)
 	{
-		threadq = malloc(sizeof(threadQ));
+		threadq = osmalloc(sizeof(threadQ));
 		scheduler->tq[Node->qlevel] = threadq;	
 		//shceduler->tq[0]->fronto
         thread_q_init(Node,threadq);
@@ -97,7 +97,7 @@ void enqueue(threadNode *Node)
         threadq->threshold = MAXTHD - Node->qlevel;
         
     } 
-    //front is empty similar if the list has not been malloced yet
+    //front is empty similar if the list has not been osmalloced yet
     else if (threadq -> front == NULL) 
 	{
         thread_q_init(Node,threadq);
@@ -207,7 +207,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 {
 	if (mutex->waitQ == NULL)
 	{
-		mutex->waitQ = (threadQ *)malloc(sizeof(threadQ));
+		mutex->waitQ = (threadQ *)osmalloc(sizeof(threadQ));
 		thread_q_init(tNode, mutex->waitQ);
 		mutex ->waitQ -> size = 1;
 	}
@@ -220,7 +220,7 @@ void mutex_enqueue(threadNode * tNode, my_pthread_mutex_t * mutex)
 	else
 	{
 		threadNode * rear = mutex->waitQ->rear;
-		//rear->next = (threadNode *)malloc(sizeof(threadNode));
+		//rear->next = (threadNode *)osmalloc(sizeof(threadNode));
 		rear->next = tNode;
 		mutex->waitQ->rear = rear->next;
 		mutex->waitQ->rear->next = NULL;

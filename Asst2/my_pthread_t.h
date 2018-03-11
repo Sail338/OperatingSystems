@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "page_alloc.h"
 
 // Feel free to add your own auxiliary data structures
 

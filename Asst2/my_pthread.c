@@ -36,7 +36,7 @@ void normal_sig_handler(int signum)
 
 void * wrapper_function(void*(*start)(void*),void*args)
 {
-	void ** ret = (void**)malloc(sizeof(int*));
+	void ** ret = (void**)osmalloc(sizeof(int*));
     *ret = (void*)start(args);
 
 	my_pthread_exit(ret);	
@@ -219,7 +219,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
 {
-	//mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
+	//mutex = (my_pthread_mutex_t *)osmalloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
 	{
