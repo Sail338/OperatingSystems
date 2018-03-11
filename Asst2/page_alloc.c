@@ -4,7 +4,7 @@ page * findFreePages()
     int pageSize = sysconf(_SC_PAGE_SIZE);
     void * ptr = myBlock + OSLAND;
     //Page has all of its space 
-    if((page*)ptr->capacity == pageSize)
+    if(((page*)ptr)->capacity == pageSize)
     {
           
     }
@@ -30,17 +30,17 @@ int swap(page * p1, page * p2)
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
-    memcpy(temp,p1->physical_addr,pageSize);
-    memcpy(p1->physical_addr,p2->physical_addr,pageSize);
-    memcpy(p2->physical_addr,temp,pageSize);
-    void * t = p1->physical_addr;
-    p1->physical_addr = p2->physical_addr;
-    p2->physical_addr = t;
+    memcpy(temp,p1->memBlock,pageSize);
+    memcpy(p1->memBlock,p2->memBlock,pageSize);
+    memcpy(p2->memBlock,temp,pageSize);
+    void * t = p1->memBlock;
+    p1->memBlock = p2->memBlock;
+    p2->memBlock = t;
     int p1Info = getKey(p1->virtual_addr);
     int p2Info = getKey(p2->virtual_addr);
-    page * tempPtr = pageTable->pages+p1Info;
-    pageTable->pages+p1Info = pageTable->pages+p2Info;
-    pageTable->pages+p2Info = tempPtr;
+    page * tempPtr = PT->pages[p1Info];
+    PT->pages[p1Info] = PT->pages[p2Info];
+    PT->pages[p2Info] = tempPtr;
     
 }
 
@@ -62,7 +62,7 @@ int initialize()
     void * ptr = myBlock + OSLAND;
     for(i = 0; i < numOfPages; i++){
         PT->pages[i] = osmalloc(myBlock,sizeof(page));
-        PT->pages[i]->physical_addr = ptr;
+        PT->pages[i]->memBlock = ptr;
         PT->pages[i]->virtual_addr = ptr;
         PT->pages[i]->next_page = NULL;
         PT->pages[i]->prev_page = NULL;
