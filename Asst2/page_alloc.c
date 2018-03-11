@@ -17,10 +17,11 @@ int getKey(void * virtualAddr)
     int i = 0;
     int numOfPages = (8000000000 - OSLAND) / pageSize;
     while(i < numOfPages){
-        if ptr == virtualAddr:
+        if (ptr == virtualAddr){
             return i;
         ptr += pageSize;
         i += 1;
+			}
     }
     return -1;
 }
@@ -47,25 +48,24 @@ int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
     myBlock  = memalign(pageSize,8388608);
-    int i = 0;
-    for(int i = 0; i < 8388608; i++)
+    int i;
+    for(i = 0; i < 8388608; i++)
     {
         myBlock[i] = 0;
     }
     int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
-    PT = osmalloc(myBlock,sizeof(pageTable));
+    PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;
     PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
-    int i;
     void * ptr = myBlock + OSLAND;
     for(i = 0; i < numOfPages; i++){
         PT->pages[i] = osmalloc(myBlock,sizeof(page));
         PT->pages[i]->physical_addr = ptr;
         PT->pages[i]->virtual_addr = ptr;
-        PT->pages[i]->next = NULL;
-        PT->pages[i]->prev = NULL;
-        PT->pages[i]->owner = NULL;
+        PT->pages[i]->next_page = NULL;
+        PT->pages[i]->prev_page = NULL;
+        PT->pages[i]->thread = NULL;
         PT->pages[i]->space_remaining = pageSize;
         PT->pages[i]->capacity = pageSize;
         PT->pages[i]->is_initialized= 0;
