@@ -15,7 +15,7 @@
 
 #define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) myfree(x, __FILE__, __LINE__)
-#define OSLAND 500000
+#define OSLAND 503808
 #define LEVELS  5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
@@ -138,6 +138,7 @@ void initArray(char*);
 
 pageTable * PT;
 int DRAM_INIT;
+int PAGE_TABLE_INIT;
 int getKey();
 
 int defragPages();
