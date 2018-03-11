@@ -8,7 +8,7 @@ page * findFreePages()
     {
           
     }
-
+}
 
 int getKey(void * virtualAddr)
 {
