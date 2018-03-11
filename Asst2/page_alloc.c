@@ -41,6 +41,7 @@ int swap(page * p1, page * p2)
     page * tempPtr = PT->pages[p1Info];
     PT->pages[p1Info] = PT->pages[p2Info];
     PT->pages[p2Info] = tempPtr;
+	return 0;
     
 }
 /**
@@ -82,6 +83,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
 	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
+		//numRequested = validateInput(curr_page, numRequested);
 	//might want to include error message here
 	//THIS WILL ALSO GO IN WRAPPER
 	//if (numRequested == 0)
@@ -120,10 +122,12 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 	if(os_mode){
 				*(int *) currMeta = *(int *)DRAM;
 		}
-	else{
+		else{
 				*(int *)currMeta = *(int *)curr_page -> memBlock;
+	
+
 		}
-	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
+		int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 		
 		while(consumed < maxSize)
 		{
@@ -142,6 +146,7 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 				//increment distanace traveled
 				consumed += increment;
 			}
+			//catches both free and used jumps through mod arith
 		}
 	
 	return NULL;
@@ -177,6 +182,7 @@ void defrag (page * curr_page,bool os_mode)
 
 		probe += 1+*probe;
 
+		//continue hopping along memBlock and consolidating free blocks until you hit a non-free block
 		while(consumed<curr_page -> capacity && (*probe)%2==0)
 		{
 				*home += 1+*probe;
@@ -237,9 +243,7 @@ bool segment_free(void * target)
 		return true;
 	}
 	printf("SPACE NOT IN USE\n");
-	return false;
 }
-
 //set initial amount of free space and zero out the array in case of garbage null terminators
 void page_init(page * curr_page)
 {
@@ -254,6 +258,7 @@ void page_init(page * curr_page)
 }
 
 size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
+//PUTHIS THIS IN THE WRAPPER FUNCTION
 {
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 	//must be within array bounds
@@ -331,6 +336,7 @@ void *mymalloc(size_t bytes){
 	 * 
 	 * **/
 	//inits page table if it alreadt hasnt been
+	bytes = 0;
 	if(!PAGE_TABLE_INIT){
 		//initialize page table and then scheduler
 		
@@ -367,4 +373,3 @@ void *mymalloc(size_t bytes){
 	return NULL;
 
 }
-
