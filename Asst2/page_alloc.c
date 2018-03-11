@@ -1,4 +1,4 @@
-#include "page_alloc.h"
+#include "util.h"
 page * findFreePages()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
@@ -47,7 +47,7 @@ int swap(page * p1, page * p2)
 int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    DRAM  = memalign(pageSize,8388608);
+    DRAM  = (char *)memalign(pageSize,8388608);
     int i;
     for(i = 0; i < OSLAND; i++)
     {
@@ -151,7 +151,8 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 			else
 			{
 				//catches both free and used jumps through mod arith
-				int increment = *(int *)currMeta - *(int *)currMeta%2 + 1;
+				int sub = *(int *)currMeta;
+				int increment = sub - (sub%2) + 4;
 				//update currMeta to point to next metadata block		
 				currMeta += increment*sizeof(char);
 				//increment distanace traveled
@@ -266,7 +267,7 @@ void* mallocDetails(int numReq, char* memBlock)
 	int total = *( int*)memBlock;
 	if (total > numReq)
 	{
-		void * leftovers = (int *)(memBlock)+1+numReq;
+		char * leftovers = memBlock+4+numReq;
 		*(int *)leftovers = total-(numReq+4);
 	}
 	*(int*)memBlock = numReq+1;
