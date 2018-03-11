@@ -1,9 +1,9 @@
 #include "my_pthread_t.h"
 
 int main(){
-	char *x = osmalloc(3);
-	*x = 'a';
-	printf("x is %s",x);
+	int *x = osmalloc(3);
+	*x = 3;
+	printf("x is %d",*x);
 
 
 }

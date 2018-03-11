@@ -53,6 +53,7 @@ int initialize()
     {
         DRAM[i] = 0;
     }
+	*(int *)DRAM = OSLAND-4;
     int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
 
