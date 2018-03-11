@@ -47,14 +47,15 @@ int swap(page * p1, page * p2)
 int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    myBlock  = memalign(pageSize,8388608);
+    DRAM  = memalign(pageSize,8388608);
     int i;
-    for(i = 0; i < 8388608; i++)
+    for(i = 0; i < OSLAND; i++)
     {
-        myBlock[i] = 0;
+        DRAM[i] = 0;
     }
     int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
+
     	/*
 		 * PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;
@@ -89,7 +90,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
-	char* thatSoMeta = findSpace(curr_page, numRequested);
+	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
 	//might want to include error message here
 	//THIS WILL ALSO GO IN WRAPPER
 	//if (numRequested == 0)
@@ -112,31 +113,49 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 }
 
 //returns pointer to METADATA BLOCK of first incidence of sufficiently large block
-char* findSpace(page * curr_page, int numReq)
+char* findSpace(page * curr_page, int numReq,bool os_mode)
 {
 	//tracks how far down the array has been traveled
 	int consumed = 0;
 	//keeps trace of value contained in current metadata block
-	void * currMeta = curr_page -> memBlock;
-	
-	while(consumed < curr_page -> capacity)
-	{
-		*(int *)currMeta = *(int *)curr_page -> memBlock;
-		//return pointer to start of META (not user!) data block if sufficient size free block is found
-		if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
-		{
-			return currMeta;
-		}
-		else
-		{
-			//catches both free and used jumps through mod arith
-			int increment = *(int *)currMeta - *(int *)currMeta%2 + 1;
-			//update currMeta to point to next metadata block		
-			currMeta += increment*sizeof(char);
-			//increment distanace traveled
-			consumed += increment;
-		}
+	void * currMeta;
+	if(os_mode){
+		currMeta = DRAM;
+	}	
+	else{
+		 currMeta = curr_page -> memBlock;
 	}
+	
+	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
+
+
+
+
+		
+		while(consumed < maxSize)
+		{
+			if(os_mode){
+				*(int *) currMeta = *(int *)DRAM;
+			}
+			else{
+				*(int *)currMeta = *(int *)curr_page -> memBlock;
+			}
+			//return pointer to start of META (not user!) data block if sufficient size free block is found
+			if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
+			{
+				return currMeta;
+			}
+			else
+			{
+				//catches both free and used jumps through mod arith
+				int increment = *(int *)currMeta - *(int *)currMeta%2 + 1;
+				//update currMeta to point to next metadata block		
+				currMeta += increment*sizeof(char);
+				//increment distanace traveled
+				consumed += increment;
+			}
+		}
+	
 	return NULL;
 } 
 
@@ -216,16 +235,17 @@ void page_init(page * curr_page)
 	int capacity = curr_page -> capacity;
 	for (i=0; i < capacity; i++)
 	{
-		myBlock[i] = '0';
+		curr_page->memBlock[i] = '0';
 	}
-	*(int*)myBlock = curr_page->capacity - 2;
+	*(int*)curr_page->memBlock = curr_page->capacity - 4;
 	curr_page -> is_initialized = true;
 }
 
-size_t validateInput(page * curr_page, size_t numRequested)
+size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 {
+	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
 	//must be within array bounds
-	if (numRequested <= 0 || numRequested > curr_page -> capacity)
+	if (numRequested <= 0 || maxSize)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
@@ -234,16 +254,20 @@ size_t validateInput(page * curr_page, size_t numRequested)
 	return (numRequested + numRequested%2);
 }
 
-void* mallocDetails(size_t numReq, char* index)
+void* mallocDetails(int  numReq, char* memBlock,bool os_mode)
 {
-	unsigned short total = *(unsigned short*)index;
+	int  total = *(unsigned int*)memBlock;
 	if (total > numReq)
 	{
-		unsigned short* leftovers = (unsigned short*) (index+2+numReq*sizeof(char));
-		*leftovers = total - (numReq+2);
+		int * leftovers = (int*) ((memBlock+4+numReq)*sizeof(char));
+		*leftovers = total - (numReq+4);
 	}
 
 	*(unsigned short*)index = numReq+1;
 	//printf("remaining free space: %hu \n", *(unsigned short*)(index+2+numReq*(sizeof(char))));
 	return (void*)index;
+}
+
+void* osmalloc(int bytes){
+	
 }
