@@ -318,7 +318,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex)
 			curr = temp;
 		}
 	}
-	free (mutex->waitQ);
+	os_free (mutex->waitQ);
 //	free (mutex);
     __atomic_store_n(&(scheduler->SYS),false, __ATOMIC_SEQ_CST);
 	my_pthread_yield();

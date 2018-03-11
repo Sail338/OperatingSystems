@@ -188,13 +188,13 @@ bool page_free(void * target, bool os_mode)
 	{
 		end = (void *)(DRAM + OSLAND);
 	}
-	void* targetFree = target - 4;
+	void* targetMeta = target - 4;
 
 	//check that the section you're trying to free is within os space/user page bounds
 	//THIS CODE SEGMENT IS JUST FOR THE OS RIGHT NOW
-	if (targetFree >= (void *)DRAM && targetFree < (void *)(DRAM+OSLAND-5))
+	if (targetMeta >= (void *)DRAM && targetMeta < (void *)(DRAM+OSLAND-5))
 	{
-		if (segment_free(target) == true)
+		if (segment_free(targetMeta) == true)
 			return true;
 	}
 	
@@ -230,7 +230,7 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 {
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 	//must be within array bounds
-	if (numRequested <= 0 || numRequested >= maxSize)
+	if (numRequested <= 0 || numRequested > maxSize)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
@@ -273,7 +273,7 @@ void* osmalloc(int bytes)
 //TODO: WRITE A FIND_PAGE HELPER FUNCTION FOR USER FREE TO FIND THE PAGE WITHIN WHICH THEY'RE TRYING TO FREE
 
 //JUST CALLS PAGE_FREE FOR OS 
-bool osfree(void * target)
+bool os_free(void * target)
 {
 	return page_free(target, true);
 }

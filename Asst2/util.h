@@ -14,7 +14,7 @@
 #include <string.h>
 
 #define malloc(x) mymalloc (x, __FILE__, __LINE__)
-#define free(x) myfree(x, __FILE__, __LINE__)
+#define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
 #define LEVELS  5
 #define MULTIPLIER 2
@@ -128,9 +128,9 @@ bool page_free (void* target, bool os_mode);
 
 bool segment_free(void * target);
 
-bool os_free(void * target);
+bool os_free(void *);
 
-void* mallocDetails(int numReq, char * memBlock);
+void*mallocDetails(int numReq, char * memBlock);
 
 size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
 
