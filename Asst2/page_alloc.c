@@ -102,6 +102,10 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
+	if(usable_space != NULL && !os_mode){
+
+		curr_page ->space_remaining -= (numRequested + 4);
+	}
 	return usable_space;//mallocDetails(numRequested, thatSoMeta);	
 }
 
@@ -210,6 +214,9 @@ void defrag (page * curr_page,bool os_mode)
  **/
 bool page_free(void * target, bool os_mode)
 {
+	/*
+	 *TODO make sure the wrapper function free() puts back the space remaing
+	 * */
 	//FIRST THING YOU DO IF OS MODE IS FALSE IS CALL THE HELPER FUNCTION TO FIND THE PAGE
 	//calc boundaries	
 	void * end;
@@ -329,14 +336,43 @@ bool os_free(void * target)
  *
  *
  * */
-void *mymalloc(size_t bytes){
+page *giveNewPage(){
+	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
+	int i;
+	for(i=0;i<numOfPages;i++){
+
+		if(PT->pages[i]->is_initialized == false){
+				PT->pages[i]->is_initialized = true;
+				page_init(PT->pages[i]);
+				page *ptr = scheduler ->current ->owned_pages;
+
+				//add the given page to the threads owned_pages
+				while(ptr->next_page_in_ll != NULL){
+					ptr = ptr->next_page_in_ll;
+
+				}
+
+				ptr ->next_page_in_ll = osmalloc(sizeof(page));
+				ptr ->next_page_in_ll = PT->pages[i];
+				ptr->next_page_in_ll -> next_page_in_ll = NULL;
+		//TODO should pick a victim and swap in a new page from swap
+
+				return PT->pages[i];
+
+			}
+	}
+		//TODO grab from swap if there are no free pages 
+		printf("page pageTable is full :<\n");
+		return NULL;	
+
+}
+void *mymalloc(size_t numRequested){
 	/**
 	 *
 	 *The function that the user is going to call
 	 * 
 	 * **/
 	//inits page table if it alreadt hasnt been
-	bytes = 0;
 	if(!PAGE_TABLE_INIT){
 		//initialize page table and then scheduler
 		
@@ -356,7 +392,6 @@ void *mymalloc(size_t bytes){
         	PT->pages[i]->virtual_addr = ptr;
         	PT->pages[i]->next_page = NULL;
         	PT->pages[i]->prev_page = NULL;
-       		PT->pages[i]->thread = NULL;
        		PT->pages[i]->space_remaining = pageSize;
         	PT->pages[i]->capacity = pageSize;
         	PT->pages[i]->is_initialized= false;
@@ -369,6 +404,36 @@ void *mymalloc(size_t bytes){
     	}
 		PAGE_TABLE_INIT =1;
 
+	}
+	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
+	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
+		//grab the current context
+		threadNode * curr = scheduler->current;
+		//if he pagelist has not been initalized then init it
+		if(curr -> owned_pages == NULL){
+			curr -> owned_pages = osmalloc(sizeof(page*));	
+			curr -> owned_pages -> next_page_in_ll = NULL;
+		
+		}
+		//iterate through owned pages and check if any of them having the appropriate space left
+		page * ptr = curr ->owned_pages;
+		while(ptr!= NULL){
+			if(ptr->space_remaining >= (int)numRequested){
+				void *first_try = page_alloc(ptr,numRequested,false);
+				if(first_try != NULL){
+					//give new page
+					return first_try;
+				}
+			}	
+			ptr = ptr->next_page_in_ll;
+			
+		}
+		//give a new page if we have to
+		void * second_try = giveNewPage();
+		if(second_try != NULL){
+			return second_try;
+
+		}
 	}
 	return NULL;
 

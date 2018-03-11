@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <string.h>
 
-#define malloc(x) mymalloc (x, __FILE__, __LINE__)
+//#define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
 #define LEVELS  5
@@ -31,6 +31,21 @@
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t
 #define MEM 4096
+
+typedef struct page
+{
+	//for contigous pages	
+	struct page * next_page;
+	struct page * prev_page;
+	//for the linkedlist
+	struct page * next_page_in_ll;
+	//data type? hello?
+	int space_remaining;
+	int capacity;
+	bool is_initialized;
+	char * memBlock;
+    void * virtual_addr;
+} page;
 /* define your data structures here: */
  typedef struct threadControlBlock {
 	struct threadControlBlock * next;
@@ -47,7 +62,8 @@
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
 	bool is_waiting;
-	 } tcb;
+	page *owned_pages;	
+} tcb;
 typedef tcb  threadNode;
 typedef threadNode * my_pthread_t;
 typedef struct threadQ
@@ -98,18 +114,6 @@ int initScheduler();
 
 static char * DRAM;
 int initblock;
-typedef struct page
-{
-	threadNode * thread;
-	struct page * next_page;
-	struct page * prev_page;
-	//data type? hello?
-	int space_remaining;
-	int capacity;
-	bool is_initialized;
-	char * memBlock;
-    void * virtual_addr;
-} page;
 
 typedef struct pageTable
 {
@@ -152,4 +156,5 @@ int swap(page*, page*);
 
 page * victim();
 void * osmalloc(int);
+void *mymalloc(size_t);
 #endif
