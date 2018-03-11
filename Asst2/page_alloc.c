@@ -1,7 +1,4 @@
 #include "page_alloc.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include "until.h"
 int getKey(void * virtualAddr){
     void * ptr = myBlock + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
@@ -37,13 +34,13 @@ int swap(page * p1, page * p2)
 int initialize()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    myBlock = memalign(pageSize,8000000000);
+    myBlock  = memalign(pageSize,8388608);
     int i = 0;
-    for(int i = 0; i < 8000000000; i++)
+    for(int i = 0; i < 8388608; i++)
     {
         myBlock[i] = 0;
     }
-    int numOfPages = (8000000000-OSLAND)/pageSize;
+    int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
     PT = osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;

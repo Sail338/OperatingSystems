@@ -1,4 +1,6 @@
+#include <malloc.h>
 #include <stdlib.h>
+
 #include <string.h>
 #include <stdio.h>
 #include "util.h"
@@ -13,8 +15,8 @@ int initblock;
 typedef struct page
 {
 	threadNode * thread;
-	page * next_page;
-	page * prev_page;
+	struct page * next_page;
+	struct page * prev_page;
 	//data type? hello?
 	void * physical_addr;
 	int space_remaining;
