@@ -124,7 +124,11 @@ char* findSpace(page * curr_page, int numReq, bool os_mode);
 //mergesi contiguous blocks of free memory into a single large block 
 void defrag(page * curr_page,bool);
 
-bool myfree (void* p, char* file, int line);
+bool page_free (void* target, bool os_mode);
+
+bool segment_free(void * target);
+
+bool os_free(void * target);
 
 void* mallocDetails(int numReq, char * memBlock);
 

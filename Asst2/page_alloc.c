@@ -206,32 +206,39 @@ void defrag (page * curr_page,bool os_mode)
 	}
 }
 
+
 //return boolean true for success and failure
-bool myfree(void* target, char* file, int line)
+bool page_free(void * target, bool os_mode)
 {
-//	printf("in target: %p \n", (void*)target);
-//	printf ("target: %hu \n", *(unsigned short*)(target-2));
-	void* targetFree = target - 2;
-	void* ptr = (void*)DRAM;
-	unsigned short distance = 0;
-	while (targetFree != ptr && distance < 5000)
+	//FIRST THING YOU DO IF OS MODE IS FALSE IS CALL THE HELPER FUNCTION TO FIND THE PAGE
+	//calc boundaries	
+	void * end;
+	if (os_mode == true)
 	{
-		distance += 2+ *(unsigned short*)ptr - (*(unsigned short*)ptr) %2;
-//		printf("DISTANCE: %hu \n", distance);
-		ptr += *(unsigned short*)ptr +2 - (*(unsigned short*)ptr)%2;
+		end = (void *)(DRAM + OSLAND);
 	}
-	//here either targetFree = ptr or distance > 5000
-	if (targetFree == ptr)
+	void* targetFree = target - 4;
+
+	//check that the section you're trying to free is within os space/user page bounds
+	//THIS CODE SEGMENT IS JUST FOR THE OS RIGHT NOW
+	if (targetFree >= (void *)DRAM && targetFree < (void *)(DRAM+OSLAND-5))
 	{
-	//	printf("%hu \n", *(unsigned short*)ptr);
-		if ((*(unsigned short*)ptr) %2 == 1)
-		{
-//			printf("merp\n");
-			*(unsigned short*)ptr -= 1;
+		if (segment_free(target) == true)
 			return true;
-		}
 	}
-	printf("ERROR: INVALID ADDRESS, CANNOT FREE\n");
+	
+	printf ("INVALID ADDRESS, CANNOT FREE\n");
+	return false;
+}
+
+bool segment_free(void * target)
+{
+	if (*(int *) target %2 == 1)
+	{
+		*(int *) target -= 1;
+		return true;
+	}
+	printf("SPACE NOT IN USE\n");
 	return false;
 }
 
@@ -275,10 +282,20 @@ void* mallocDetails(int numReq, char* memBlock)
 	return (void*)(memBlock+4*sizeof(char));
 }
 
-void* osmalloc(int bytes){
+void* osmalloc(int bytes)
+{
 	void  *x =page_alloc(NULL,bytes,true);	
-	if(x == DRAM + OSLAND){
+	if(x >= (void *)(DRAM + OSLAND))
+	{
 		return NULL;
 	}
 	return x;
+}
+
+//TODO: WRITE A FIND_PAGE HELPER FUNCTION FOR USER FREE TO FIND THE PAGE WITHIN WHICH THEY'RE TRYING TO FREE
+
+//JUST CALLS PAGE_FREE FOR OS 
+bool osfree(void * target)
+{
+	return page_free(target, true);
 }
