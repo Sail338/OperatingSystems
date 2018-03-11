@@ -54,31 +54,7 @@ int initialize()
         DRAM[i] = 0;
     }
 	*(int *)DRAM = OSLAND-4;
-    int numOfPages = (8388608-OSLAND)/pageSize;
-    initblock = 1;
-
-    	
-		 /* PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
-    PT->freePages = numOfPages;
-    PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
-    void * ptr = myBlock + OSLAND;
-    for(i = 0; i < numOfPages; i++){
-        PT->pages[i] = osmalloc(myBlock,sizeof(page));
-        PT->pages[i]->memBlock = ptr;
-        PT->pages[i]->virtual_addr = ptr;
-        PT->pages[i]->next_page = NULL;
-        PT->pages[i]->prev_page = NULL;
-        PT->pages[i]->thread = NULL;
-        PT->pages[i]->space_remaining = pageSize;
-        PT->pages[i]->capacity = pageSize;
-        PT->pages[i]->is_initialized= 0;
-        i+=1;
-        ptr += pageSize;
-    }*/
-    if(init == 0)
-    {
-        //initScheduler();
-    }
+	return 0;
 }
 
 
@@ -89,11 +65,6 @@ int initialize()
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
-	if(DRAM_INIT ==0)
-	{
-			initialize();
-			DRAM_INIT =1;
-	}
 	numRequested = validateInput(curr_page, numRequested, os_mode);
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
@@ -284,6 +255,13 @@ void* mallocDetails(int numReq, char* memBlock)
 
 void* osmalloc(int bytes)
 {
+
+	if(DRAM_INIT ==0)
+
+	{
+			initialize();
+			DRAM_INIT =1;
+	}
 	void  *x =page_alloc(NULL,bytes,true);	
 	if(x >= (void *)(DRAM + OSLAND))
 	{
@@ -299,3 +277,47 @@ bool osfree(void * target)
 {
 	return page_free(target, true);
 }
+
+void *mymalloc(size_t bytes){
+	/**
+	 *
+	 *The function that the user is going to call
+	 * 
+	 * **/
+	if(!PAGE_TABLE_INIT){
+		//initialize page table and then scheduler
+		
+    	int pageSize = sysconf(_SC_PAGE_SIZE);
+    	int numOfPages = (8388608-OSLAND)/pageSize;
+
+    	//allocate space for the pageTable struct 	
+		 PT = (pageTable *)osmalloc(sizeof(pageTable));
+
+    	  PT->freePages = numOfPages;
+    	  PT->pages = osmalloc(sizeof(page*)*numOfPages);
+   		 void * ptr = (void*)(DRAM + OSLAND);
+		 int i;
+   		 for(i = 0; i < numOfPages; i++){
+        	PT->pages[i] = osmalloc(sizeof(page));
+       		PT->pages[i]->memBlock = ptr;
+        	PT->pages[i]->virtual_addr = ptr;
+        	PT->pages[i]->next_page = NULL;
+        	PT->pages[i]->prev_page = NULL;
+       		PT->pages[i]->thread = NULL;
+       		PT->pages[i]->space_remaining = pageSize;
+        	PT->pages[i]->capacity = pageSize;
+        	PT->pages[i]->is_initialized= false;
+        	ptr += pageSize;
+   	 	}
+		 //if shceduler has not be initalized call initScheduler()
+    	if(init == 0)
+    	{
+        	initScheduler();
+    	}
+		PAGE_TABLE_INIT =1;
+
+	}
+	return NULL;
+
+}
+
