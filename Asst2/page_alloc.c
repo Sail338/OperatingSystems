@@ -55,7 +55,8 @@ int initialize()
     }
     int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
-    PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
+    	/*
+		 * PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;
     PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
     void * ptr = myBlock + OSLAND;
@@ -71,7 +72,7 @@ int initialize()
         PT->pages[i]->is_initialized= 0;
         i+=1;
         ptr += pageSize;
-    }
+    }*/
     if(init == 0)
     {
         initScheduler();
@@ -84,24 +85,20 @@ int initialize()
 
 
 //should pass in page struct as param
-void* page_alloc (page * curr_page, size_t numRequested, bool os_mode)
+void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
-	char* thatSoMeta;
+	char* thatSoMeta = findSpace(curr_page, numRequested);
 	//might want to include error message here
 	//THIS WILL ALSO GO IN WRAPPER
 	//if (numRequested == 0)
 	//	return 0;
-	if (checkSpace(myBlock, numRequested))
+	if (thatSoMeta == NULL)
 	{
-		thatSoMeta = findSpace(myBlock, numRequested);
-	}
-	else
-	{
-		defrag(myBlock);
+		defrag(curr_page);
 		printf("defragged\n");
-		thatSoMeta = findSpace(myBlock, numRequested);
+		thatSoMeta = findSpace(curr_page, numRequested);
 	}
 	if(thatSoMeta == NULL)
 	{
@@ -111,42 +108,41 @@ void* page_alloc (page * curr_page, size_t numRequested, bool os_mode)
 	
 	void* test = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
-	return test + 2;//mallocDetails(numRequested, thatSoMeta);	
+	return test + 4;//mallocDetails(numRequested, thatSoMeta);	
 }
 
-//returns pointer to first incidence of sufficiently large block
+//returns pointer to METADATA BLOCK of first incidence of sufficiently large block
 char* findSpace(page * curr_page, int numReq)
 {
 	//tracks how far down the array has been traveled
 	int consumed = 0;
 	//keeps trace of value contained in current metadata block
-	int * currMeta = curr_page -> memBlock;
+	void * currMeta = curr_page -> memBlock;
 	
 	while(consumed < curr_page -> capacity)
 	{
-		*currMeta = *(int *)curr_page -> memBlock;
+		*(int *)currMeta = *(int *)curr_page -> memBlock;
 		//return pointer to start of META (not user!) data block if sufficient size free block is found
-		//TOOK AWAY THE PLUS TWO HERE
-		if((*(currMeta)%2==0) && (*(currMeta)>=numReq))
+		if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
 		{
-//			printf("head block: %hu\n", currMeta);
-			return myBlock;
+			return currMeta;
 		}
 		else
 		{
 			//catches both free and used jumps through mod arith
-			unsigned short increment = *currMeta - (*(currMeta)%2) + 2;
-//			printf("currMeta: %hu \t increment: %hu \n", currMeta, increment);
-			myBlock += increment*sizeof(char);
+			int increment = *(int *)currMeta - *(int *)currMeta%2 + 1;
+			//update currMeta to point to next metadata block		
+			currMeta += increment*sizeof(char);
 			//increment distanace traveled
 			consumed += increment;
-			//printf("consumed: %hu \n", consumed);
 		}
 	}
 	return NULL;
 } 
 
 //find contiguous blocks of free space and combine them to a single large block
+
+//THIS IS DEFINITELY FULL OF BUGS WITH POINTER INCREMENTATION
 void defrag (page * curr_page)
 {
 	int consumed = 0;
@@ -160,20 +156,21 @@ void defrag (page * curr_page)
 		//proceed until landing upon first empty block
 		while (consumed < curr_page -> capacity  && *home%2 == 1)
 		{
-			consumed += 2+*home;
+			//update consumed by amount of space after metadata block, plus size of metadata block itself
+			consumed += 4+*home;
+
 			//divide by four because when adding contents of home (i.e. $ of bytes occupied) to home address, will do so by adding them in increments of sizeof(int)
-			home += (1+*home)/4;
-			//could you also do probe = home?
-			probe += (1+*probe)/4;
+			home += 1+*home;
+			probe += 1+*probe;
 		}
 
-		probe += (2+*probe)/4;
+		probe += 1+*probe;
 
 		while(consumed<curr_page -> capacity && (*probe)%2==0)
 		{
-				*home += 2+*probe;
-				consumed += 2+*probe;
-				probe += (2+*probe)/2;
+				*home += 1+*probe;
+				consumed += 1+*probe;
+				probe += 1+*probe;
 		}
 		if (*(probe)%2 == 1)
 		{

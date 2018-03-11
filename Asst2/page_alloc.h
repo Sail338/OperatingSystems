@@ -18,11 +18,10 @@ typedef struct page
 	struct page * next_page;
 	struct page * prev_page;
 	//data type? hello?
-	void * physical_addr;
 	int space_remaining;
 	int capacity;
-	boolean is_initialized;
-	char * memBlock;
+	bool is_initialized;
+	void * memBlock;
     void * virtual_addr;
 } page;
 
@@ -33,13 +32,10 @@ typedef struct pageTable
 }pageTable;
 
 
-//returns pointer to block of memory if sufficient space remains in myBlock
-void* mymalloc(size_t numRequested, char* file, int line);
+void * page_alloc(page * curr_page, int numRequested, bool os_mode);
 
-bool checkSpace(char* myBlock, size_t numReq);
-
-char* findSpace(char* myBlock, unsigned short numReq);
-//merges contiguous blocks of free memory into a single large block 
+char* findSpace(page * curr_page, int numReq);
+//mergesi contiguous blocks of free memory into a single large block 
 void defrag(page * curr_page);
 
 bool myfree (void* p, char* file, int line);
