@@ -10,7 +10,7 @@
 
 //malloc array - holds metadata as a short and spaces allocated for user data
 //Need to memalign myBlock so do this in init
-static char * myBlock;
+static char * DRAM;
 int initblock;
 typedef struct page
 {
@@ -21,7 +21,7 @@ typedef struct page
 	int space_remaining;
 	int capacity;
 	bool is_initialized;
-	void * memBlock;
+	char * memBlock;
     void * virtual_addr;
 } page;
 
@@ -34,15 +34,15 @@ typedef struct pageTable
 
 void * page_alloc(page * curr_page, int numRequested, bool os_mode);
 
-char* findSpace(page * curr_page, int numReq);
+char* findSpace(page * curr_page, int numReq, bool os_mode);
 //mergesi contiguous blocks of free memory into a single large block 
 void defrag(page * curr_page);
 
 bool myfree (void* p, char* file, int line);
 
-void* mallocDetails(size_t numRequested, char* index);
+void* mallocDetails(int numReq, char * memBlock);
 
-size_t validateInput(page* curr_page, size_t numRequested);
+size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
 
 void initArray(char*);
 

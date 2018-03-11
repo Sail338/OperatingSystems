@@ -2,17 +2,17 @@
 page * findFreePages()
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    void * ptr = myBlock + OSLAND;
+    void * ptr = DRAM + OSLAND;
     //Page has all of its space 
     if(((page*)ptr)->capacity == pageSize)
     {
           
     }
-}
+
 
 int getKey(void * virtualAddr)
 {
-    void * ptr = myBlock + OSLAND;
+    void * ptr = DRAM + OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
     int numOfPages = (8000000000 - OSLAND) / pageSize;
@@ -56,8 +56,8 @@ int initialize()
     int numOfPages = (8388608-OSLAND)/pageSize;
     initblock = 1;
 
-    	/*
-		 * PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
+    	
+		 /* PT = (pageTable *)osmalloc(myBlock,sizeof(pageTable));
     PT->freePages = numOfPages;
     PT->pages = osmalloc(myBlock,sizeof(page*)*numOfPages);
     void * ptr = myBlock + OSLAND;
@@ -99,7 +99,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	{
 		defrag(curr_page);
 		printf("defragged\n");
-		thatSoMeta = findSpace(curr_page, numRequested);
+		thatSoMeta = findSpace(curr_page, numRequested, os_mode);
 	}
 	if(thatSoMeta == NULL)
 	{
@@ -107,9 +107,9 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 		return 0;
 	}
 	
-	void* test = mallocDetails(numRequested, thatSoMeta);
+	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
-	return test + 4;//mallocDetails(numRequested, thatSoMeta);	
+	return usable_space;//mallocDetails(numRequested, thatSoMeta);	
 }
 
 //returns pointer to METADATA BLOCK of first incidence of sufficiently large block
@@ -127,10 +127,6 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 	}
 	
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
-
-
-
-
 		
 		while(consumed < maxSize)
 		{
@@ -205,7 +201,7 @@ bool myfree(void* target, char* file, int line)
 //	printf("in target: %p \n", (void*)target);
 //	printf ("target: %hu \n", *(unsigned short*)(target-2));
 	void* targetFree = target - 2;
-	void* ptr = (void*)myBlock;
+	void* ptr = (void*)DRAM;
 	unsigned short distance = 0;
 	while (targetFree != ptr && distance < 5000)
 	{
@@ -245,7 +241,7 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 {
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
 	//must be within array bounds
-	if (numRequested <= 0 || maxSize)
+	if (numRequested <= 0 || numRequested >= maxSize)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
@@ -254,20 +250,19 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 	return (numRequested + numRequested%2);
 }
 
-void* mallocDetails(int  numReq, char* memBlock,bool os_mode)
+void* mallocDetails(int numReq, char* memBlock)
 {
-	int  total = *(unsigned int*)memBlock;
+	int total = *(unsigned int*)memBlock;
 	if (total > numReq)
 	{
-		int * leftovers = (int*) ((memBlock+4+numReq)*sizeof(char));
-		*leftovers = total - (numReq+4);
+		void * leftovers = (int *)(memBlock)+1+numReq;
+		*(int *)leftovers = total-(numReq+4);
 	}
-
-	*(unsigned short*)index = numReq+1;
+	*(int*)memBlock = numReq+1;
 	//printf("remaining free space: %hu \n", *(unsigned short*)(index+2+numReq*(sizeof(char))));
-	return (void*)index;
+	return (void*)(memBlock+4*sizeof(char));
 }
 
-void* osmalloc(int bytes){
-	
-}
+/*void* osmalloc(int bytes){
+;	
+}*/
