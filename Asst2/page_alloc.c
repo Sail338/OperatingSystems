@@ -133,16 +133,16 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 		 currMeta = curr_page -> memBlock;
 	}
 	
+	if(os_mode){
+				*(int *) currMeta = *(int *)DRAM;
+		}
+	else{
+				*(int *)currMeta = *(int *)curr_page -> memBlock;
+		}
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 		
 		while(consumed < maxSize)
 		{
-			if(os_mode){
-				*(int *) currMeta = *(int *)DRAM;
-			}
-			else{
-				*(int *)currMeta = *(int *)curr_page -> memBlock;
-			}
 			//return pointer to start of META (not user!) data block if sufficient size free block is found
 			if(((*(int *)currMeta)%2==0) && (*(int *)currMeta)>=numReq)
 			{
