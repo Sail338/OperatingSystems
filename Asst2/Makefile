@@ -14,7 +14,7 @@ my_pthread.a: my_pthread.o
 my_pthread.o: my_pthread_t.h page_alloc.o util 
 	$(CC) -pthread $(CFLAGS) my_pthread.c 
 
-page_alloc.o:page_alloc.h
+page_alloc.o:
 	$(CC) $(CFLAGS) page_alloc.c
 
 clean:

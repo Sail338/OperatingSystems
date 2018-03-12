@@ -132,6 +132,8 @@ bool page_free (void* target, bool os_mode);
 
 bool segment_free(void * target);
 
+void page_clean();
+
 bool os_free(void *);
 
 void*mallocDetails(int numReq, char * memBlock);

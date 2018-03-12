@@ -246,6 +246,58 @@ bool page_free(void * target, bool os_mode)
 	return false;
 }
 
+//wrapper for freeing function, to be called by user threads
+bool my_free(void * target)
+{
+	bool freed = page_free(target, false);
+	if (freed == true)
+	{
+		page * curr_page = find_page(target);
+		curr_page -> space_remaining += *(int *)(target-4)+4;
+		
+
+		return true;
+	}
+	return false;
+}
+
+void page_clean()
+{
+	threadNode * curr_thread = scheduler->current;
+	page * curr_page = curr_thread -> owned_pages;
+	//deletes from front
+	while (curr_page != NULL && curr_page -> space_remaining == curr_page -> capacity)
+	{
+		curr_page -> is_initialized = false;
+		PT->freePages ++;
+		curr_thread -> owned_pages = curr_page->next_page;
+		curr_thread -> owned_pages->prev_page = NULL;
+	}
+
+	page* prev = curr_thread -> owned_pages;
+	if (prev != NULL)
+	{
+		curr_page = prev->next_page;
+	}
+	else
+	{
+		curr_page = NULL;
+	}
+	while (curr_page != NULL)
+	{
+		if (curr_page -> space_remaining == curr_page -> capacity)
+		{
+			curr_page -> is_initialized = false;
+			PT->freePages ++;
+			prev -> next_page = prev->next_page->next_page;
+			prev = prev -> next_page;
+			if (prev != NULL)
+			{
+				curr_page = prev -> next_page;
+			}
+		}
+	}
+}
 //this is used in user free functions; it finds the page which contains the pointer they're trying to free
 void* find_page(void * target)
 {
