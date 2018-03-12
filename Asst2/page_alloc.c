@@ -261,41 +261,24 @@ bool my_free(void * target)
 	return false;
 }
 
-void page_clean()
+void page_clean(page *start)
 {
-	threadNode * curr_thread = scheduler->current;
-	page * curr_page = curr_thread -> owned_pages;
-	//deletes from front
-	while (curr_page != NULL && curr_page -> space_remaining == curr_page -> capacity)
-	{
-		curr_page -> is_initialized = false;
-		PT->freePages ++;
-		curr_thread -> owned_pages = curr_page->next_page;
-		curr_thread -> owned_pages->prev_page = NULL;
-	}
-
-	page* prev = curr_thread -> owned_pages;
-	if (prev != NULL)
-	{
-		curr_page = prev->next_page;
-	}
-	else
-	{
-		curr_page = NULL;
-	}
-	while (curr_page != NULL)
-	{
-		if (curr_page -> space_remaining == curr_page -> capacity)
-		{
-			curr_page -> is_initialized = false;
-			PT->freePages ++;
-			prev -> next_page = prev->next_page->next_page;
-			prev = prev -> next_page;
-			if (prev != NULL)
-			{
-				curr_page = prev -> next_page;
-			}
+	//first clear out the linked list 
+	page * temp = NULL;
+	while(start  != NULL){
+		if(start->capacity == start -> space_remaining){
+			temp = start->next_page;
+			start -> is_initialized = false;
+			start -> owner = NULL;
+			start ->next_page = NULL;
+			start -> prev_page = NULL;
+			start = temp;
+			
 		}
+		else{
+				start = start->next_page;
+		}
+
 	}
 }
 //this is used in user free functions; it finds the page which contains the pointer they're trying to free
@@ -424,19 +407,9 @@ page *giveNewPage()
 		if(PT->pages[i]->is_initialized == false){
 				PT->pages[i]->is_initialized = true;
 				page_init(PT->pages[i]);
-				page *ptr = scheduler ->current ->owned_pages;
-
-				//add the given page to the threads owned_pages
-				while(ptr->next_page_in_ll != NULL){
-					ptr = ptr->next_page_in_ll;
-
-				}
-
-				ptr ->next_page_in_ll = osmalloc(sizeof(page));
-				ptr ->next_page_in_ll = PT->pages[i];
-				ptr->next_page_in_ll -> next_page_in_ll = NULL;
-		//TODO should pick a victim and swap in a new page from swap
-
+				//TODO should pick a victim and swap in a new page from swap
+				//set owner equal to current
+				PT->pages[i]->owner  = scheduler -> current;
 				return PT->pages[i];
 
 			}
@@ -453,12 +426,13 @@ void *mymalloc(size_t numRequested)
 	 *The function that the user is going to call
 	 * 
 	 * **/
+
+    int pageSize = sysconf(_SC_PAGE_SIZE);
+    int numOfPages = (8388608-OSLAND)/pageSize;
 	//inits page table if it alreadt hasnt been
 	if(!PAGE_TABLE_INIT){
 		//initialize page table and then scheduler
 		
-    	int pageSize = sysconf(_SC_PAGE_SIZE);
-    	int numOfPages = (8388608-OSLAND)/pageSize;
 
     	//allocate space for the pageTable struct 	
 		 PT = (pageTable *)osmalloc(sizeof(pageTable));
@@ -473,6 +447,7 @@ void *mymalloc(size_t numRequested)
         	PT->pages[i]->virtual_addr = ptr;
         	PT->pages[i]->next_page = NULL;
         	PT->pages[i]->prev_page = NULL;
+			PT->pages[i]->owner = NULL;
        		PT->pages[i]->space_remaining = pageSize;
         	PT->pages[i]->capacity = pageSize;
         	PT->pages[i]->is_initialized= false;
@@ -490,25 +465,21 @@ void *mymalloc(size_t numRequested)
 	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
 		//grab the current context
 		threadNode * curr = scheduler->current;
-		//if he pagelist has not been initalized then init it
-		if(curr -> owned_pages == NULL){
-			curr -> owned_pages = osmalloc(sizeof(page*));	
-			curr -> owned_pages -> next_page_in_ll = NULL;
-		
-		}
+		//iterate through page table and check if thread already owns any pages
+		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
-		page * ptr = curr ->owned_pages;
-		while(ptr!= NULL){
-			if(ptr->space_remaining >= (int)numRequested){
-				void *first_try = page_alloc(ptr,numRequested,false);
-				if(first_try != NULL){
+		for(i=0;i<numOfPages;i++){
+			page* ptr = PT->pages[i];
+			if(ptr->owner == curr){		
+				if(ptr->space_remaining >= (int)numRequested){
+					void *first_try = page_alloc(ptr,numRequested,false);
+					if(first_try != NULL){
 					//give new page
-					return first_try;
+						return first_try;
 				}
-			}	
-			ptr = ptr->next_page_in_ll;
-			
+			}
 		}
+	}
 		//give a new page if we have to
 		void * second_try = giveNewPage();
 		if(second_try != NULL){

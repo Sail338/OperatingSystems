@@ -32,21 +32,6 @@
 #define pthread_mutex_t my_pthread_mutex_t
 #define MEM 4096
 
-typedef struct page
-{
-	//for contigous pages	
-	struct page * next_page;
-	struct page * prev_page;
-	//for the linkedlist
-	struct page * next_page_in_ll;
-	//data type? hello?
-	int space_remaining;
-	int capacity;
-	bool is_initialized;
-	char * memBlock;
-    void * virtual_addr;
-} page;
-/* define your data structures here: */
  typedef struct threadControlBlock {
 	struct threadControlBlock * next;
 	ucontext_t thread;
@@ -62,8 +47,21 @@ typedef struct page
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
 	bool is_waiting;
-	page *owned_pages;	
 } tcb;
+typedef struct page
+{
+	//for contigous pages	
+	struct page * next_page;
+	struct page * prev_page;
+	//data type? hello?
+	tcb *owner;//tcb == threadNode
+	int space_remaining;
+	int capacity;
+	bool is_initialized;
+	char * memBlock;
+    void * virtual_addr;
+} page;
+/* define your data structures here: */
 typedef tcb  threadNode;
 typedef threadNode * my_pthread_t;
 typedef struct threadQ
