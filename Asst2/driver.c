@@ -5,6 +5,7 @@ int main(){
 	*x = 1;
 	int * y = (int *) mymalloc(4);
 	*y = 2;
-	printf("x contents: %d, y contents: %d\n", *x, *y);
+	
+	printf("x addr: %p, y addr: %p\n", x, y);
 
 }

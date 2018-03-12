@@ -471,7 +471,9 @@ void *mymalloc(size_t numRequested)
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
+				printf("I am the ownr");
 				if(ptr->space_remaining >= (int)numRequested){
+					printf("found a page I own\n");
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
 					//give new page
@@ -482,6 +484,7 @@ void *mymalloc(size_t numRequested)
 	}
 		//give a new page if we have to
 		void * second_try = giveNewPage();
+		printf("the owner is %p", ((page*)(second_try))->owner);
 		if(second_try != NULL){
 			return second_try;
 

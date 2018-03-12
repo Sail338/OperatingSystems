@@ -42,7 +42,6 @@ threadNode * createNewNode(threadNode *node,int level,int numSlices,double spawn
 	node -> term =0;
     node -> return_value = NULL;
 	node->did_join = false;
-	node ->owned_pages = NULL;
 	node->is_waiting = false;
 	/**
 	 * IF the argument is NULL that means we already have a context with a function, we dont have to call makecontext(), we use when we want to create a Node for the main thread
