@@ -157,4 +157,5 @@ int swap(page*, page*);
 page * victim();
 void * osmalloc(int);
 void *mymalloc(size_t);
+bool my_free(void*);
 #endif
