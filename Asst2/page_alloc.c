@@ -2,7 +2,7 @@
 
 
 /**
- * Initializes DRAM , gives us 8 MB with melaign and then 0s out OSSPACE
+ * Initializes DRAM , gives us 8 MB with memalign and then 0s out OSSPACE
  * and then sets the metadata in OSSPACE to the appropriate amount
  * */
 int DRAM_initialize()
@@ -30,7 +30,10 @@ void page_init(page * curr_page)
 	*(int*)curr_page->memBlock = curr_page->capacity - 4;
 	curr_page -> is_initialized = true;
 }
-
+/**
+ *Hash function to get the index in the pagetable given a pageadress
+ *ie maps 0x80000 -> 1 
+ * */
 int getKey(void * virtualAddr)
 {
     void * ptr = DRAM + OSLAND;
@@ -49,6 +52,11 @@ int getKey(void * virtualAddr)
 }
 
 //this is used in user free functions; it finds the page which contains the pointer they're trying to free
+/**
+ *@param target : given a target find the page the target is in
+ 	This function maps a target to its relevant page, is useful in free when we free a pointer inside a page so we can update page struct
+ *
+ * **/
 void* find_page(void * target)
 {
 	void * index = (void *)(DRAM + OSLAND);
@@ -64,6 +72,7 @@ void* find_page(void * target)
 		}
 		index += pageSize;
 	}
+	return NULL;
 }
 
 
@@ -92,9 +101,13 @@ void* osmalloc(int bytes)
 	return x;
 }
 
-//the malloc function that users call
+/**
+ *@param numRequested : number of bytes the user wants
+ *This is the actual malloc function the user calls
+ * */
 void *mymalloc(size_t numRequested)
 {
+	
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int numOfPages = (8388608-OSLAND)/pageSize;
 	//inits page table if it hasn't already been
@@ -106,6 +119,7 @@ void *mymalloc(size_t numRequested)
     	  PT->pages = osmalloc(sizeof(page*)*numOfPages);
    		 void * ptr = (void*)(DRAM + OSLAND);
 		 int i;
+		 //initializing the pages in page table with default values
    		 for(i = 0; i < numOfPages; i++){
         	PT->pages[i] = osmalloc(sizeof(page));
        		PT->pages[i]->memBlock = ptr;
@@ -118,29 +132,25 @@ void *mymalloc(size_t numRequested)
         	PT->pages[i]->is_initialized= false;
         	ptr += pageSize;
    	 	}
-		 //if shceduler has not be initalized call initScheduler()
+		 //if scheduler has not be initalized call initScheduler()
     	if(init == 0)
     	{
         	initScheduler();
     	}
 		PAGE_TABLE_INIT =1;
-
 	}
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
 		//grab the current context
 		threadNode * curr = scheduler->current;
-		//iterate through page table and check if thread already owns any pages
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
 				if(ptr->space_remaining >= ((int)numRequested)+4){
-					//printf("found a page I own! space remaining: %d\n", ptr->space_remaining);
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
-					//give new page
 						return first_try;
 				}
 			}
@@ -148,16 +158,19 @@ void *mymalloc(size_t numRequested)
 	}
 		//give a new page if we have to
 		void * second_try = giveNewPage();
+		//with the new page make call to page_alloc this SHOULD RETURN TRUE 
 		void *to_ret = page_alloc(second_try,numRequested,false);
 		if(to_ret != NULL){
 			return to_ret;
-
 		}
 	}
+	//case 2 MORE THAN A PAGE
 	return NULL;
 }
 
-/* *page_alloc takes in a pointer to a page and allocates the appropriate amount
+/* 
+ *@param numRequested: number of bytes of Requested USER requested 
+ * *page_alloc takes in a pointer to a page and allocates the appropriate amount
  *assumes that the block given is also contigous so page_alloc does NOT do any page swapping
  *
  * **/
@@ -194,29 +207,35 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	}
 	return usable_space;//mallocDetails(numRequested, thatSoMeta);	
 }
-
+/**
+ * If a malloc is odd , give them an even amount
+ * also makes sure it is within bounds of OSland or USR LAND
+ *
+ * */
 size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 //PUT THIS THIS IN THE WRAPPER FUNCTION
 {
 	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
 	//must be within array bounds
-	if (numRequested <= 0 || numRequested > maxSize)
+	if (numRequested <= 0 ||(int) numRequested > maxSize)
 		{
 			printf("INVALID REQUEST, CANNOT ALLOC\n");
 			return 0;
 		}
-	numRequested += numRequested %2;
+
 	//allocation must be even
+	numRequested += numRequested %2;
 	return numRequested;
 }
 
 
 /**
+	returns pointer to METADATA BLOCK of first incidence of sufficiently large block
  *@param curr_page a empty page or a page a thread owns with enough space
  @param numRequested number of blocks to be allocated
  *@param os_mode an OSMODE flag which tells page_alloc to allocate in osland,curr_page should be null and is ignored if this flag is set to true
 */
-//returns pointer to METADATA BLOCK of first incidence of sufficiently large block
+
 char* findSpace(page * curr_page, int numReq,bool os_mode)
 {
 	//tracks how far down the array has been traveled
@@ -225,22 +244,16 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 	void * currMeta;
 	if(os_mode){
 		currMeta = DRAM;
+
+		*(int *) currMeta = *(int *)DRAM;
 	}	
 	else{
 		 currMeta = curr_page -> memBlock;
+		*(int *)currMeta = *(int *)curr_page -> memBlock;
 	}
-	
-	if(os_mode){
-				*(int *) currMeta = *(int *)DRAM;
-		}
-		else{
-				*(int *)currMeta = *(int *)curr_page -> memBlock;
-	
-
-		}
-	
+		//ternary operator to determine max size if OSLAND then it gets osland size, else the blocks capcity	
 		int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
-		
+		//finds the next metadata block
 		while(consumed < maxSize)
 		{
 			//return pointer to start of META (not user!) data block if sufficient size free block is found
@@ -265,19 +278,22 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 } 
 
 //find contiguous blocks of free space and combine them to a single large block
-
+/**
+ *This defrags within a page or group of contigous pages, basically systems defrag 
+ *@param curr_page: the start of the contigous block you want to defrag 
+ @param os_mode: if os mode is true we currently do nothing
+ *
+ * */
 void defrag (page * curr_page,bool os_mode)
 {
-		//currently we dont defrag in os_mode
+	//currently we dont defrag in os_mode
 	if(os_mode)
 	{
-			return;
+		return;
 	}
 	int consumed = 0;
 	char * home = (char *) (curr_page -> memBlock);
 	char * probe = (char *) (curr_page -> memBlock);
-	int toAdd = 0;
-
 	//proceed until the end of the memBlock is reached
 	while(consumed < curr_page -> capacity)
 	{
@@ -307,10 +323,12 @@ void defrag (page * curr_page,bool os_mode)
 
 	}
 }
-
+/**
+ *Gives a new page to the current context
+ *
+ * */
 page *giveNewPage()
 {
-	printf("GIVING NEW PAGE\n");
 	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
@@ -328,7 +346,6 @@ page *giveNewPage()
 		//TODO grab from swap if there are no free pages 
 		printf("page pageTable is full :<\n");
 		return NULL;	
-
 }
 
 /**
@@ -353,19 +370,26 @@ void* mallocDetails(int numReq, char* memBlock)
 
 /******************* FREE-Y THINGS *******************/
 
-//JUST CALLS PAGE_FREE FOR OS 
+/**
+ *free function that os/our library uses user do not touch this at all
+ * */
 bool os_free(void * target)
 {
 	return page_free(target, true);
 }
-
-//wrapper for freeing function, to be called by user threads
+/**
+ *Free() function that the USER will call
+ *@param target: the pointer you want to free (does not have to be the start of a page)
+ *
+ * */
 bool my_free(void * target)
 {
 	bool freed = page_free(target, false);
 	if (freed == true)
 	{
+		//finds the page the target lies in
 		page * curr_page = find_page(target);
+		//add 4 because space +meta is now free 
 		curr_page -> space_remaining += *(int *)(target-4)+4;
 		return true;
 	}
@@ -383,11 +407,7 @@ bool my_free(void * target)
  **/
 bool page_free(void * target, bool os_mode)
 {
-	/*
-	 * */
-	//FIRST THING YOU DO IF OS MODE IS FALSE IS CALL THE HELPER FUNCTION TO FIND THE PAGE
 	//calc boundaries	
-	void * end;
 	void* targetMeta = target - 4;
 	if (os_mode == true)
 	{
@@ -399,16 +419,13 @@ bool page_free(void * target, bool os_mode)
 	}
 	else
 	{
-		page * curr_page = (page *) (find_page(target));
 		if (segment_free(targetMeta) == true)
 		{
-		//	curr_page->space_remaining += *(int*)targetMeta + 4;
 			return true;
 		}
 	}
 
 	//check that the section you're trying to free is within os space/user page bounds
-	
 	printf ("INVALID ADDRESS, CANNOT FREE\n");
 	return false;
 }
@@ -426,6 +443,7 @@ bool segment_free(void * target)
 		return true;
 	}
 	printf("SPACE NOT IN USE\n");
+	return false;
 }
 
 
@@ -450,7 +468,10 @@ int swap(page * p1, page * p2)
 	return 0;
     
 }
-
+/**
+ *Frees up page structs for pages that have been contigously allocated so that they can be used by diff contexts
+ *@param start: start of a contigous chunk, the next chunk is start->next_page
+ * */
 void page_clean(page *start)
 {
 	//first clear out the linked list 
