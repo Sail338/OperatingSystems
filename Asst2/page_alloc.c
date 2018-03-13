@@ -214,8 +214,10 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 				return page_alloc(to_alloc,numRequested,false);
 			}
 			else{
-				contig = 0;
-				start_contig = NULL;
+				if(pg->is_initialized == true){
+					contig = 0;
+					start_contig = NULL;
+				}
 		}
 
 	}			
