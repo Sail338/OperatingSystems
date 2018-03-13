@@ -7,7 +7,9 @@ int main(){
 	*y = 2;
 	int *z =(int*)mymalloc(1360);
 	*z = 3;
+//	printf("FREEING Y\n");
 	my_free(y);
+//	printf("FREEING Z\n");
 	my_free(z);
 	int *a = mymalloc(2720);
 	*a =77;

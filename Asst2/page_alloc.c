@@ -236,7 +236,7 @@ bool page_free(void * target, bool os_mode)
 		page * curr_page = (page *) (find_page(target));
 		if (segment_free(targetMeta) == true)
 		{
-			curr_page->space_remaining += *(int*)targetMeta + 4;
+		//	curr_page->space_remaining += *(int*)targetMeta + 4;
 			return true;
 		}
 	}
@@ -293,6 +293,7 @@ void* find_page(void * target)
 	{
 		if (target >= index && target <= index + pageSize)
 		{
+			//printf("The page number is %d\n",pageNum);
 			return (void *)(PT->pages[pageNum]);
 		}
 		index += pageSize;
@@ -474,7 +475,7 @@ void *mymalloc(size_t numRequested)
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
 				if(ptr->space_remaining >= ((int)numRequested)+4){
-					printf("found a page I own! space remaining: %d\n", ptr->space_remaining);
+					//printf("found a page I own! space remaining: %d\n", ptr->space_remaining);
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
 					//give new page
