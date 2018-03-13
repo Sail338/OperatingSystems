@@ -1,5 +1,5 @@
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef THREAD_UTIL_H
+#define THREAD_UTIL_H
 #include <malloc.h>
 #include <ucontext.h>
 #include <unistd.h>
@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <string.h>
 
-#define malloc(x) mymalloc (x, __FILE__, __LINE__)
+//#define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
 #define LEVELS  5
@@ -31,8 +31,9 @@
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t
 #define MEM 4096
-/* define your data structures here: */
- typedef struct threadControlBlock {
+
+ typedef struct threadControlBlock 
+{
 	struct threadControlBlock * next;
 	ucontext_t thread;
 	double spawnTime;
@@ -47,7 +48,9 @@
 	//flag to detect whether this tread joined another thread or not
 	bool did_join;
 	bool is_waiting;
-	 } tcb;
+} tcb;
+
+/* define your data structures here: */
 typedef tcb  threadNode;
 typedef threadNode * my_pthread_t;
 typedef struct threadQ
@@ -96,60 +99,4 @@ void normal_sig_handler();
 threadNode* createNewNode(threadNode*,int,int,double,my_pthread_t *,void*(*function)(void*),void*);
 int initScheduler();
 
-static char * DRAM;
-int initblock;
-typedef struct page
-{
-	threadNode * thread;
-	struct page * next_page;
-	struct page * prev_page;
-	//data type? hello?
-	int space_remaining;
-	int capacity;
-	bool is_initialized;
-	char * memBlock;
-    void * virtual_addr;
-} page;
-
-typedef struct pageTable
-{
-    page ** pages;
-    short freePages;
-}pageTable;
-
-
-void * page_alloc(page * curr_page, int numRequested, bool os_mode);
-
-char* findSpace(page * curr_page, int numReq, bool os_mode);
-//mergesi contiguous blocks of free memory into a single large block 
-void defrag(page * curr_page,bool);
-
-bool page_free (void* target, bool os_mode);
-
-bool segment_free(void * target);
-
-bool os_free(void *);
-
-void*mallocDetails(int numReq, char * memBlock);
-
-size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
-
-void initArray(char*);
-
-pageTable * PT;
-int DRAM_INIT;
-int PAGE_TABLE_INIT;
-int getKey();
-
-int defragPages();
-//First find free contigous pages -> if none avaliable use the freePages algorithm and repeat the algorithm, if there is still none and no more pages can be freed -> start choosing victims
-page * findFreePages();
-//This algorithm goes through the entire block as frees up pages that can be freed!
-//If a page is connected to another page an algorithm is put in place to detach the page from the contgious block
-int freePages();
-
-int swap(page*, page*);
-
-page * victim();
-void * osmalloc(int);
 #endif
