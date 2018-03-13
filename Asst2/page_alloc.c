@@ -236,7 +236,8 @@ int ceil_bytes(int numBytes)
 	return x;
 }
 
-page *multi_page_prep(page *start,int num_pages_needed,int numRequested){
+page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
+{
 	//build the linked list and set metadata and set other pages is_init = true
 	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
 	start -> owner = scheduler -> current;
@@ -277,8 +278,8 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested){
 
 
 		}
-		
 
+			ptr = ptr->next_page;
 	}
 	return start;
 
@@ -444,6 +445,7 @@ void defrag (page * curr_page,bool os_mode)
  * */
 page *giveNewPage()
 {
+	printf("I SHOULD NEVER BE CALLED \n");
 	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
