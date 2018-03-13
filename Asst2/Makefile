@@ -5,7 +5,7 @@ RANLIB = ranlib
 
 
 Target: my_pthread.a
-util: util.h
+util: page_util.h
 	$(CC) $(CFLAGS) util.c
 my_pthread.a: my_pthread.o 
 	$(AR) libmy_pthread.a page_alloc.o util.o my_pthread.o 
