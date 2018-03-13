@@ -164,38 +164,38 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
 void defrag (page * curr_page,bool os_mode)
 {
 		//currently we dont defrag in os_mode
-	if(os_mode){
+	if(os_mode)
+	{
 			return;
-		}
+	}
 	int consumed = 0;
-	int * home = (int *) (curr_page -> memBlock);
-	int * probe = (int *) (curr_page -> memBlock);
+	char * home = (char *) (curr_page -> memBlock);
+	char * probe = (char *) (curr_page -> memBlock);
 	int toAdd = 0;
 
 	//proceed until the end of the memBlock is reached
 	while(consumed < curr_page -> capacity)
 	{
 		//proceed until landing upon first empty block
-		while (consumed < curr_page -> capacity  && *home%2 == 1)
+		while (consumed < curr_page -> capacity  && (*(int *)home)%2 == 1)
 		{
 			//update consumed by amount of space after metadata block, plus size of metadata block itself
-			consumed += 4+*home;
+			consumed += 4+*(int *)home;
 
-			//divide by four because when adding contents of home (i.e. $ of bytes occupied) to home address, will do so by adding them in increments of sizeof(int)
-			home += 1+*home;
-			probe += 1+*probe;
+			home += (4-1)+*(int *)home;
+			probe += (4-1)+*(int *)probe;
 		}
 
-		probe += 1+*probe;
+		probe += (4-1)+*(int *)probe;
 
 		//continue hopping along memBlock and consolidating free blocks until you hit a non-free block
-		while(consumed<curr_page -> capacity && (*probe)%2==0)
+		while(consumed<curr_page -> capacity && (*(int *)probe)%2==0)
 		{
-				*home += 1+*probe;
-				consumed += 1+*probe;
-				probe += 1+*probe;
+				*(int*)home += 4+*(int *)probe;
+				consumed += 4+*(int *)probe;
+				probe += 4+*(int *)probe;
 		}
-		if (*(probe)%2 == 1)
+		if (*(int *)(probe) %2 == 1)
 		{
 			home = probe;
 		}
@@ -401,6 +401,7 @@ bool os_free(void * target)
  * */
 page *giveNewPage()
 {
+	printf("GIVING NEW PAGE\n");
 	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
@@ -472,8 +473,8 @@ void *mymalloc(size_t numRequested)
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
-				if(ptr->space_remaining >= (int)numRequested){
-					printf("found a page I own\n");
+				if(ptr->space_remaining >= ((int)numRequested)+4){
+					printf("found a page I own! space remaining: %d\n", ptr->space_remaining);
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
 					//give new page
