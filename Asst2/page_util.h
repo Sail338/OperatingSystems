@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 //#define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
@@ -50,6 +49,14 @@ void * find_page(void *);
 void * osmalloc(int);
 
 void *mymalloc(size_t);
+
+void *case_1(int,int);
+
+void* multi_page_alloc(int,int);
+
+int ceil_bytes(int);
+
+page* multi_page_prep(page*,int,int);
 
 void * page_alloc(page * curr_page, int numRequested, bool os_mode);
 

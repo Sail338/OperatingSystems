@@ -142,6 +142,31 @@ void *mymalloc(size_t numRequested)
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
 		//grab the current context
+		return case_1(numRequested,numOfPages);
+	}
+
+	//case 2 MORE THAN A PAGE
+	else if((int)numRequested > sysconf(_SC_PAGE_SIZE))
+	{
+		return multi_page_alloc	(numRequested,numOfPages);	
+	}
+
+			
+		//else defrag and swap pages around
+		
+
+		//swap files
+	
+	return NULL;
+}
+/**
+ *@param numRequested : bytes requested
+ @param numPages numOfPages total in the pagetable
+ *this is the helper function for case 1 less than a page
+ * */
+void *case_1(int numRequested,int numOfPages)
+{
+
 		threadNode * curr = scheduler->current;
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
@@ -163,9 +188,98 @@ void *mymalloc(size_t numRequested)
 		if(to_ret != NULL){
 			return to_ret;
 		}
+
+}
+void * multi_page_alloc(int numRequested,int numOfPages)
+{
+		 //calculate number of pages needed
+		int num_pages_needed = ceil_bytes(numRequested); 
+		//check if there are n contgious pages in DRAM 	
+		int i;
+		int contig = 0;
+		page *start_contig = NULL;
+		
+		for(i=0;i<numOfPages;i++){
+		
+			page* pg = find_page(DRAM+OSLAND + sysconf(_SC_PAGE_SIZE) * i);			
+			if(pg ->is_initialized == false){
+				if(contig ==0){
+					start_contig = pg;
+				}
+				contig ++;
+				
+			}
+			if(contig == num_pages_needed){
+				void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
+				return page_alloc(to_alloc,numRequested,false);
+			}
+			else{
+				contig = 0;
+				start_contig = NULL;
+		}
+
+	}			
+		return NULL;
+}
+
+int ceil_bytes(int numBytes)
+{
+	double pg_size = (double)sysconf(_SC_PAGE_SIZE);
+	double bytes =  (double)numBytes;
+	double divided = bytes/pg_size;
+	int x = (int)divided;
+	if (divided - (double)x> 0){
+		return x+1;
 	}
-	//case 2 MORE THAN A PAGE
-	return NULL;
+	return x;
+}
+
+page *multi_page_prep(page *start,int num_pages_needed,int numRequested){
+	//build the linked list and set metadata and set other pages is_init = true
+	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
+	start -> owner = scheduler -> current;
+	start ->space_remaining = 0;
+	start->is_initialized = true;
+	page * ptr = start;
+	page_init(ptr);	
+	int i;
+	start ->prev_page = NULL;
+	for(i=1;i<num_pages_needed;i++)
+	{
+		if(ptr == start){
+			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*i);	
+
+		}
+		else{
+			ptr ->prev_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i-1));
+			if(i != num_pages_needed -1){
+
+				ptr ->next_page  = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));
+			} 
+			else{
+				ptr ->next_page = NULL;
+			}
+
+			if(ptr != start){
+				ptr->owner = scheduler ->current;
+				ptr ->space_remaining = 0;
+				ptr ->is_initialized = true;
+				//if we are the last page
+				if(ptr->next_page == NULL){
+					ptr->space_remaining = sysconf(_SC_PAGE_SIZE)*num_pages_needed	- numRequested;
+
+				}
+
+
+			}
+
+
+		}
+		
+
+	}
+	return start;
+
 }
 
 /* 
@@ -174,7 +288,6 @@ void *mymalloc(size_t numRequested)
  *assumes that the block given is also contigous so page_alloc does NOT do any page swapping
  *
  * **/
-
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
