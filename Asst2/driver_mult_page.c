@@ -1,12 +1,8 @@
 
 #include "my_pthread_t.h"
-
+#include <string.h>
 int main(){
-	char* x = mymalloc(8188);
-	x[0] = '1';
-	x[1] = '2';
-	x[2] = '\0';
-	printf("%s\n",x);
-
+		char *x = mymalloc(4098);
+		char *y = mymalloc(10);
 
 }
