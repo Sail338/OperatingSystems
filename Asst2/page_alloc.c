@@ -529,14 +529,18 @@ bool my_free(void * target)
 				curr_page = curr_page -> next_page;
 			}
             if(curr_page -> next_page == NULL){
-                int np = *(int*)(start_page->memBlock);
-                np = (*(int*)(start_page->memBlock+4+np));
-                if(np % 2 == 0){
+                int next = *(int*)(start_page->memBlock);
+                np = (*(int*)(start_page->memBlock+4+next));
+                if(np % 2 == 0)
+                {
                     curr_page-> space_remaining = sysconf(_SC_PAGE_SIZE);
                 }
-            }
+                else{
+                    int metaFront = sysconf(_SC_PAGE_SIZE) - 4 - np - 4;
+                    *(int*)curr_page->memBlock = metaFront;
+                }
 			page_clean(start_page);	
-		}
+		    }
 		else
 		{
 			//add 4 because space +meta is now free 
