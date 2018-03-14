@@ -236,7 +236,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 int ceil_bytes(int numBytes)
 {
 	double pg_size = (double)sysconf(_SC_PAGE_SIZE);
-	double bytes =  (double)numBytes;
+	double bytes =  (double)numBytes+4;
 	double divided = bytes/pg_size;
 	int x = (int)divided;
 	if (divided - (double)x> 0){
