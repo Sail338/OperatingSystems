@@ -521,13 +521,20 @@ bool my_free(void * target)
 		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4))
 		{
 			page * start_page = curr_page;
-			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE)));
+			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE))-4);
 			int i;
 			for (i=0; i<numPages; i++)
 			{
 				curr_page -> space_remaining = sysconf(_SC_PAGE_SIZE);
 				curr_page = curr_page -> next_page;
 			}
+            if(curr_page -> next_page == NULL){
+                int np = *(int*)(start_page->memBlock);
+                np = (*(int*)(start_page->memBlock+4+np));
+                if(np % 2 == 0){
+                    curr_page-> space_remaining = sysconf(_SC_PAGE_SIZE);
+                }
+            }
 			page_clean(start_page);	
 		}
 		else
