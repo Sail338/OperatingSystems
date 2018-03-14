@@ -551,7 +551,9 @@ bool my_free(void * target)
                 }
                 else
                 {
-                    int metaFront = sysconf(_SC_PAGE_SIZE) - 4 - np - 4;
+					curr_page ->prev_page = NULL;
+					//got the next metadata and subtract the start oof the first page and it should give u the diff
+                    int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
                     *(int*)curr_page->memBlock = metaFront;
                 }
             }
