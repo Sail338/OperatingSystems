@@ -600,7 +600,7 @@ void page_clean(page *start)
 	//first clear out the linked list 
 	page * temp = NULL;
 	while(start  != NULL){
-		if(start->capacity == start -> space_remaining){
+		if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
 			temp = start->next_page;
 			start -> is_initialized = false;
 			start -> owner = NULL;
