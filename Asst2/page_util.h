@@ -42,6 +42,8 @@ int initblock;
 
 void page_init(page * curr_page);
 
+void page_table_initialize(int, int);
+
 int getKey();
 
 void * find_page(void *);

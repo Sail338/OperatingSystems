@@ -34,6 +34,40 @@ void page_init(page * curr_page)
  *Hash function to get the index in the pagetable given a pageadress
  *ie maps 0x80000 -> 1 
  * */
+
+
+//inits page table if it hasn't already been
+void page_table_initialize(int pageSize, int numPages)
+{
+	//initialize page table and then scheduler
+    //allocate space for the pageTable struct 	
+	PT = (pageTable *)osmalloc(sizeof(pageTable));
+   	PT->freePages = numPages;
+    PT->pages = osmalloc(sizeof(page*)*numPages);
+    void * ptr = (void*)(DRAM + OSLAND);
+	int i;
+	//initializing the pages in page table with default values
+   	for(i = 0; i < numOfPages; i++)
+	{
+    	PT->pages[i] = osmalloc(sizeof(page));
+    	PT->pages[i]->memBlock = ptr;
+        PT->pages[i]->virtual_addr = ptr;
+        PT->pages[i]->next_page = NULL;
+        PT->pages[i]->prev_page = NULL;
+		PT->pages[i]->owner = NULL;
+       	PT->pages[i]->space_remaining = pageSize;
+        PT->pages[i]->capacity = pageSize;
+        PT->pages[i]->is_initialized= false;
+        ptr += pageSize;
+   	 }
+	//if scheduler has not be initalized call initScheduler()
+    if(init == 0)
+    {
+        initScheduler();
+    }
+	PAGE_TABLE_INIT =1;
+}
+
 int getKey(void * virtualAddr)
 {
     void * ptr = DRAM + OSLAND;
@@ -109,52 +143,23 @@ void *mymalloc(size_t numRequested)
 {
 	
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    int numOfPages = (8388608-OSLAND)/pageSize;
-	//inits page table if it hasn't already been
-	if(!PAGE_TABLE_INIT){
-		//initialize page table and then scheduler
-    	//allocate space for the pageTable struct 	
-		 PT = (pageTable *)osmalloc(sizeof(pageTable));
-    	  PT->freePages = numOfPages;
-    	  PT->pages = osmalloc(sizeof(page*)*numOfPages);
-   		 void * ptr = (void*)(DRAM + OSLAND);
-		 int i;
-		 //initializing the pages in page table with default values
-   		 for(i = 0; i < numOfPages; i++){
-        	PT->pages[i] = osmalloc(sizeof(page));
-       		PT->pages[i]->memBlock = ptr;
-        	PT->pages[i]->virtual_addr = ptr;
-        	PT->pages[i]->next_page = NULL;
-        	PT->pages[i]->prev_page = NULL;
-			PT->pages[i]->owner = NULL;
-       		PT->pages[i]->space_remaining = pageSize;
-        	PT->pages[i]->capacity = pageSize;
-        	PT->pages[i]->is_initialized= false;
-        	ptr += pageSize;
-   	 	}
-		 //if scheduler has not be initalized call initScheduler()
-    	if(init == 0)
-    	{
-        	initScheduler();
-    	}
-		PAGE_TABLE_INIT =1;
+    int numPages = (8388608-OSLAND)/pageSize;
+	if (!PAGE_TABLE_INIT)
+	{
+		page_table_initialize(pageSize, numPages);
 	}
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
-	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
+	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
-		return case_1(numRequested,numOfPages);
+		return case_1(numRequested,numPages);
 	}
 
 	//case 2 MORE THAN A PAGE
-	else if((int)numRequested > sysconf(_SC_PAGE_SIZE))
+	else
 	{
-		return multi_page_alloc	(numRequested,numOfPages);	
+		return multi_page_alloc	(numRequested,numPages);	
+		//if multi page alloc returns null, then move pages around and if that fails, swap with disk
 	}
-
-			
-		//else defrag and swap pages around
-		
-
 		//swap files
 	
 	return NULL;
@@ -512,8 +517,24 @@ bool my_free(void * target)
 	{
 		//finds the page the target lies in
 		page * curr_page = find_page(target);
-		//add 4 because space +meta is now free 
-		curr_page -> space_remaining += *(int *)(target-4)+4;
+		int numFreed = *(int *)(target -4);
+		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4))
+		{
+			page * start_page = curr_page;
+			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE)));
+			int i;
+			for (i=0; i<numPages; i++)
+			{
+				curr_page -> space_remaining = sysconf(_SC_PAGE_SIZE);
+				curr_page = curr_page -> next_page;
+			}
+			page_clean(start_page);	
+		}
+		else
+		{
+			//add 4 because space +meta is now free 
+			curr_page -> space_remaining += *(int *)(target-4)+4;
+		}
 		return true;
 	}
 	return false;
