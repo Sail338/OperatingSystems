@@ -352,6 +352,19 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 
 	//allocation must be even
 	numRequested += numRequested %2;
+	//this is for the case that user requests more than a page(taking metadata into account)
+	if ((numRequested+4) > sysconf(_SC_PAGE_SIZE))
+	{
+		printf("I HAVE BEEN CALLED!\n");
+		//this is the number of bytes taking up but not necessarily filling the last page
+		int overflow = (numRequested+4)%sysconf(_SC_PAGE_SIZE);
+		//in case user uses a very small number of bytes on the last page,so that when it is freed there may either be not enough space for a metadata block, or just enough for a metadata block but no user data between it and the next block
+		if (overflow >0 && overflow < 5)
+		{
+			numRequested += 4;
+		}
+	}
+
 	return numRequested;
 }
 
