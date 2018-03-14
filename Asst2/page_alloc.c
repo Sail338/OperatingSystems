@@ -528,17 +528,20 @@ bool my_free(void * target)
 				curr_page -> space_remaining = sysconf(_SC_PAGE_SIZE);
 				curr_page = curr_page -> next_page;
 			}
-            if(curr_page -> next_page == NULL){
+            if(curr_page -> next_page == NULL)
+            {
                 int next = *(int*)(start_page->memBlock);
-                np = (*(int*)(start_page->memBlock+4+next));
+                int np = (*(int*)(start_page->memBlock+4+next));
                 if(np % 2 == 0)
                 {
                     curr_page-> space_remaining = sysconf(_SC_PAGE_SIZE);
                 }
-                else{
+                else
+                {
                     int metaFront = sysconf(_SC_PAGE_SIZE) - 4 - np - 4;
                     *(int*)curr_page->memBlock = metaFront;
                 }
+            }
 			page_clean(start_page);	
 		    }
 		else
@@ -646,4 +649,37 @@ void page_clean(page *start)
 		}
 	}
 }
+
+/**
+ *String method to print out the Page Table and its contents
+ *@param start and end: because there are a lot of pages, start and end represent what range of pages to look at in the page table. 
+ */
+void  page_table_string(int start, int end)
+{
+    if(start > end)
+    {
+        printf("Incorrect Parameters\n");
+    }
+    char * ret;
+    int i;
+    for(i = start; i <= end; i++)
+    {
+     page * curr_page = PT->pages[i];
+     printf("______________________________________________________");
+     printf("Page Number: %d\n",i);
+     printf("Prev Page Address: %x\n",curr_page->prev_page);
+     printf("Next Page Address: %x\n",curr_page->next_page);
+     printf("Owner Thread: %x\n",curr_page->owner);
+     printf("Space Remaining: %d\n",curr_page->space_remaining);
+     printf("Capacity: %d\n",curr_page->capacity);
+     printf("Initialized State: %d\n",curr_page->is_initialized);
+     printf("Mem Block Address: %x\n",curr_page->memBlock);
+     printf("Virtual Address: %x\n",curr_page->virtual_addr);
+     printf("______________________________________________________");
+    }
+}
+
+
+
+
 

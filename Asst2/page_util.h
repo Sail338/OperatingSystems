@@ -83,4 +83,6 @@ bool segment_free(void * target);
 int swap(page*, page*);
 
 void page_clean();
+
+void page_table_string();
 #endif
