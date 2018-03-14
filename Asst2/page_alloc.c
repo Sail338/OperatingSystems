@@ -65,7 +65,7 @@ void* find_page(void * target)
     int numPages = (8388608 - OSLAND) / pageSize;
 	for (pageNum=0; pageNum<numPages; pageNum++)
 	{
-		if (target >= index && target <= index + pageSize)
+		if (target >= index && target < index + pageSize)
 		{
 			//printf("The page number is %d\n",pageNum);
 			return (void *)(PT->pages[pageNum]);
@@ -173,7 +173,11 @@ void *case_1(int numRequested,int numOfPages)
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
+				printf("SPACE REAMING IS %d\n",ptr->space_remaining);
 				if(ptr->space_remaining >= ((int)numRequested)+4){
+					while(ptr->prev_page != NULL){
+						ptr = ptr -> prev_page;
+					}
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
 						return first_try;
@@ -240,21 +244,22 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 {
 	//build the linked list and set metadata and set other pages is_init = true
 	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
+	start -> space_remaining = start ->capacity;
 	start -> owner = scheduler -> current;
-	start ->space_remaining = 0;
 	start->is_initialized = true;
 	page * ptr = start;
 	page_init(ptr);	
 	int i;
 	start ->prev_page = NULL;
-	for(i=1;i<num_pages_needed;i++)
+	for(i=0;i<num_pages_needed;i++)
 	{
 		if(ptr == start){
-			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*i);	
+			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));	
 
 		}
 		else{
 			ptr ->prev_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i-1));
+			//so we dont go out of bounds
 			if(i != num_pages_needed -1){
 
 				ptr ->next_page  = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));
@@ -318,6 +323,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
 	if(usable_space != NULL && !os_mode){
+		printf("Space REMAINING BEFORE SUBTRACTION IS %d\n",curr_page->space_remaining);		
 
 		curr_page ->space_remaining -= (numRequested + 4);
 	}
