@@ -678,7 +678,7 @@ void  page_table_string(int start, int end)
     for(i = start; i <= end; i++)
     {
      page * curr_page = PT->pages[i];
-     printf("______________________________________________________");
+     printf("__________________________________________________________________\n");
      printf("Page Number: %d\n",i);
      printf("Prev Page Address: %x\n",curr_page->prev_page);
      printf("Next Page Address: %x\n",curr_page->next_page);
@@ -688,7 +688,7 @@ void  page_table_string(int start, int end)
      printf("Initialized State: %d\n",curr_page->is_initialized);
      printf("Mem Block Address: %x\n",curr_page->memBlock);
      printf("Virtual Address: %x\n",curr_page->virtual_addr);
-     printf("______________________________________________________");
+     printf("__________________________________________________________________\n");
     }
 }
 
