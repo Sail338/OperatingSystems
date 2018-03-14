@@ -37,13 +37,13 @@ void page_init(page * curr_page)
 
 
 //inits page table if it hasn't already been
-void page_table_initialize(int pageSize, int numPages)
+void page_table_initialize(int pageSize, int numOfPages)
 {
 	//initialize page table and then scheduler
     //allocate space for the pageTable struct 	
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
-   	PT->freePages = numPages;
-    PT->pages = osmalloc(sizeof(page*)*numPages);
+   	PT->freePages = numOfPages;
+    PT->pages = osmalloc(sizeof(page*)*numOfPages);
     void * ptr = (void*)(DRAM + OSLAND);
 	int i;
 	//initializing the pages in page table with default values
