@@ -34,6 +34,40 @@ void page_init(page * curr_page)
  *Hash function to get the index in the pagetable given a pageadress
  *ie maps 0x80000 -> 1 
  * */
+
+
+//inits page table if it hasn't already been
+void page_table_initialize(int pageSize, int numOfPages)
+{
+	//initialize page table and then scheduler
+    //allocate space for the pageTable struct 	
+	PT = (pageTable *)osmalloc(sizeof(pageTable));
+   	PT->freePages = numOfPages;
+    PT->pages = osmalloc(sizeof(page*)*numOfPages);
+    void * ptr = (void*)(DRAM + OSLAND);
+	int i;
+	//initializing the pages in page table with default values
+   	for(i = 0; i < numOfPages; i++)
+	{
+    	PT->pages[i] = osmalloc(sizeof(page));
+    	PT->pages[i]->memBlock = ptr;
+        PT->pages[i]->virtual_addr = ptr;
+        PT->pages[i]->next_page = NULL;
+        PT->pages[i]->prev_page = NULL;
+		PT->pages[i]->owner = NULL;
+       	PT->pages[i]->space_remaining = pageSize;
+        PT->pages[i]->capacity = pageSize;
+        PT->pages[i]->is_initialized= false;
+        ptr += pageSize;
+   	 }
+	//if scheduler has not be initalized call initScheduler()
+    if(init == 0)
+    {
+        initScheduler();
+    }
+	PAGE_TABLE_INIT =1;
+}
+
 int getKey(void * virtualAddr)
 {
     void * ptr = DRAM + OSLAND;
@@ -65,7 +99,7 @@ void* find_page(void * target)
     int numPages = (8388608 - OSLAND) / pageSize;
 	for (pageNum=0; pageNum<numPages; pageNum++)
 	{
-		if (target >= index && target <= index + pageSize)
+		if (target >= index && target < index + pageSize)
 		{
 			//printf("The page number is %d\n",pageNum);
 			return (void *)(PT->pages[pageNum]);
@@ -109,46 +143,47 @@ void *mymalloc(size_t numRequested)
 {
 	
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    int numOfPages = (8388608-OSLAND)/pageSize;
-	//inits page table if it hasn't already been
-	if(!PAGE_TABLE_INIT){
-		//initialize page table and then scheduler
-    	//allocate space for the pageTable struct 	
-		 PT = (pageTable *)osmalloc(sizeof(pageTable));
-    	  PT->freePages = numOfPages;
-    	  PT->pages = osmalloc(sizeof(page*)*numOfPages);
-   		 void * ptr = (void*)(DRAM + OSLAND);
-		 int i;
-		 //initializing the pages in page table with default values
-   		 for(i = 0; i < numOfPages; i++){
-        	PT->pages[i] = osmalloc(sizeof(page));
-       		PT->pages[i]->memBlock = ptr;
-        	PT->pages[i]->virtual_addr = ptr;
-        	PT->pages[i]->next_page = NULL;
-        	PT->pages[i]->prev_page = NULL;
-			PT->pages[i]->owner = NULL;
-       		PT->pages[i]->space_remaining = pageSize;
-        	PT->pages[i]->capacity = pageSize;
-        	PT->pages[i]->is_initialized= false;
-        	ptr += pageSize;
-   	 	}
-		 //if scheduler has not be initalized call initScheduler()
-    	if(init == 0)
-    	{
-        	initScheduler();
-    	}
-		PAGE_TABLE_INIT =1;
+    int numPages = (8388608-OSLAND)/pageSize;
+	if (!PAGE_TABLE_INIT)
+	{
+		page_table_initialize(pageSize, numPages);
 	}
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
-	if((int)numRequested <= sysconf(_SC_PAGE_SIZE)){
+	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
+		return single_page_alloc(numRequested,numPages);
+	}
+
+	//case 2 MORE THAN A PAGE
+	else
+	{
+		return multi_page_alloc	(numRequested,numPages);	
+		//if multi page alloc returns null, then move pages around and if that fails, swap with disk
+	}
+		//swap files
+	
+	return NULL;
+}
+/**
+ *@param numRequested : bytes requested
+ @param numPages numOfPages total in the pagetable
+ *this is the helper function for case 1 less than a page
+ * */
+void * single_page_alloc(int numRequested,int numOfPages)
+{
+
 		threadNode * curr = scheduler->current;
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
+				printf("SPACE REMAINING IS %d\n",ptr->space_remaining);
 				if(ptr->space_remaining >= ((int)numRequested)+4){
+					while(ptr->prev_page != NULL)
+					{
+						ptr = ptr -> prev_page;
+					}
 					void *first_try = page_alloc(ptr,numRequested,false);
 					if(first_try != NULL){
 						return first_try;
@@ -163,9 +198,103 @@ void *mymalloc(size_t numRequested)
 		if(to_ret != NULL){
 			return to_ret;
 		}
+
+}
+
+void * multi_page_alloc(int numRequested,int numOfPages)
+{
+		 //calculate number of pages needed
+		int num_pages_needed = ceil_bytes(numRequested); 
+		//check if there are n contgious pages in DRAM 	
+		int i;
+		int contig = 0;
+		page *start_contig = NULL;
+		
+		for(i=0;i<numOfPages;i++){
+		
+			page* pg = find_page(DRAM+OSLAND + sysconf(_SC_PAGE_SIZE) * i);			
+			if(pg ->is_initialized == false){
+				if(contig ==0){
+					start_contig = pg;
+				}
+				contig ++;
+				
+			}
+			if(contig == num_pages_needed){
+				void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
+				return page_alloc(to_alloc,numRequested,false);
+			}
+			else{
+				if(pg->is_initialized == true){
+					contig = 0;
+					start_contig = NULL;
+				}
+		}
+
+	}			
+		return NULL;
+}
+
+int ceil_bytes(int numBytes)
+{
+	double pg_size = (double)sysconf(_SC_PAGE_SIZE);
+	double bytes =  (double)numBytes+4;
+	double divided = bytes/pg_size;
+	int x = (int)divided;
+	if (divided - (double)x> 0){
+		return x+1;
 	}
-	//case 2 MORE THAN A PAGE
-	return NULL;
+	return x;
+}
+
+page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
+{
+	//build the linked list and set metadata and set other pages is_init = true
+	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
+	start -> space_remaining = start ->capacity;
+	start -> owner = scheduler -> current;
+	start->is_initialized = true;
+	page * ptr = start;
+	page_init(ptr);	
+	int i;
+	start ->prev_page = NULL;
+	for(i=0;i<num_pages_needed;i++)
+	{
+		if(ptr == start){
+			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));	
+
+		}
+		else{
+			ptr ->prev_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i-1));
+			//so we dont go out of bounds
+			if(i != num_pages_needed -1){
+
+				ptr ->next_page  = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));
+			} 
+			else{
+				ptr ->next_page = NULL;
+			}
+
+			if(ptr != start){
+				ptr->owner = scheduler ->current;
+				ptr ->space_remaining = 0;
+				ptr ->is_initialized = true;
+				//if we are the last page
+				if(ptr->next_page == NULL){
+					ptr->space_remaining = sysconf(_SC_PAGE_SIZE)*num_pages_needed	- numRequested;
+
+				}
+
+
+			}
+
+
+		}
+
+			ptr = ptr->next_page;
+	}
+	return start;
+
 }
 
 /* 
@@ -174,7 +303,6 @@ void *mymalloc(size_t numRequested)
  *assumes that the block given is also contigous so page_alloc does NOT do any page swapping
  *
  * **/
-
 //should pass in page struct as param
 void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 {
@@ -202,6 +330,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
 	if(usable_space != NULL && !os_mode){
+		printf("Space REMAINING BEFORE SUBTRACTION IS %d\n",curr_page->space_remaining);		
 
 		curr_page ->space_remaining -= (numRequested + 4);
 	}
@@ -225,6 +354,19 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 
 	//allocation must be even
 	numRequested += numRequested %2;
+	//this is for the case that user requests more than a page(taking metadata into account)
+	if ((numRequested+4) > sysconf(_SC_PAGE_SIZE))
+	{
+		printf("I HAVE BEEN CALLED!\n");
+		//this is the number of bytes taking up but not necessarily filling the last page
+		int overflow = (numRequested+4)%sysconf(_SC_PAGE_SIZE);
+		//in case user uses a very small number of bytes on the last page,so that when it is freed there may either be not enough space for a metadata block, or just enough for a metadata block but no user data between it and the next block
+		if (overflow >0 && overflow < 5)
+		{
+			numRequested += 4;
+		}
+	}
+
 	return numRequested;
 }
 
@@ -329,6 +471,7 @@ void defrag (page * curr_page,bool os_mode)
  * */
 page *giveNewPage()
 {
+	printf("I SHOULD NEVER BE CALLED \n");
 	int numOfPages = (8388608-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
@@ -352,18 +495,25 @@ page *giveNewPage()
  *@param numReq number of bytes passed requested
  @param the block of memory operating os (for OSmod its osland)
  *Helper function to update metadatas
+	if the amount a user requests+its metadata leaves remaining bytes too small to be their own metadata, those extra bytes are consolidated into the amount the user is given
  *
  * */
 void* mallocDetails(int numReq, char* memBlock)
 {
-	int total = *( int*)memBlock;
-	if (total > numReq)
+	int total = *(int*)memBlock;	
+	//numLeft is the amount of USABLE space remaining - that is, once you've taken into account the remainder's metadata block
+	int num_left = total - (numReq+4);
+	
+	if (num_left >= 0)
 	{
-		char * leftovers = memBlock+4+numReq;
-		*(int *)leftovers = total-(numReq+4);
+		char * leftover_metadata = memBlock+4+numReq;
+		*(int *)leftover_metadata = num_left;
+		*(int*)memBlock = numReq+1;
 	}
-	*(int*)memBlock = numReq+1;
-	//printf("remaining free space: %hu \n", *(unsigned short*)(index+2+numReq*(sizeof(char))));
+	else
+	{
+		*(int *) memBlock +=1;
+	}
 	return (void*)(memBlock+4*sizeof(char));
 }
 
@@ -389,8 +539,41 @@ bool my_free(void * target)
 	{
 		//finds the page the target lies in
 		page * curr_page = find_page(target);
-		//add 4 because space +meta is now free 
-		curr_page -> space_remaining += *(int *)(target-4)+4;
+		int numFreed = *(int *)(target -4);
+		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4))
+		{
+			page * start_page = curr_page;
+			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE))-4);
+			int i;
+			for (i=0; i<numPages; i++)
+			{
+				curr_page -> space_remaining = sysconf(_SC_PAGE_SIZE);
+				curr_page = curr_page -> next_page;
+			}
+            if(curr_page -> next_page == NULL)
+            {
+                int next = *(int*)(start_page->memBlock);
+                int np = (*(int*)(start_page->memBlock+4+next));
+                if(np % 2 == 0)
+                {
+                    curr_page-> space_remaining = sysconf(_SC_PAGE_SIZE);
+                }
+                else
+                {
+					curr_page ->prev_page = NULL;
+					//got the next metadata and subtract the start oof the first page and it should give u the diff
+                    int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
+					metaFront -= 4;
+					*(int*)curr_page->memBlock = metaFront;
+                }
+            }
+			page_clean(start_page);	
+		    }
+		else
+		{
+			//add 4 because space +meta is now free 
+			curr_page -> space_remaining += *(int *)(target-4)+4;
+		}
 		return true;
 	}
 	return false;
@@ -476,8 +659,15 @@ void page_clean(page *start)
 {
 	//first clear out the linked list 
 	page * temp = NULL;
+	page* old_start = start;
+	int distanceToMeta = *(int *)old_start->memBlock;
 	while(start  != NULL){
-		if(start->capacity == start -> space_remaining){
+		if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
+
+				return;
+			}
+		if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
+			
 			temp = start->next_page;
 			start -> is_initialized = false;
 			start -> owner = NULL;
@@ -491,4 +681,37 @@ void page_clean(page *start)
 		}
 	}
 }
+
+/**
+ *String method to print out the Page Table and its contents
+ *@param start and end: because there are a lot of pages, start and end represent what range of pages to look at in the page table. 
+ */
+void  page_table_string(int start, int end)
+{
+    if(start > end)
+    {
+        printf("Incorrect Parameters\n");
+    }
+    char * ret;
+    int i;
+    for(i = start; i <= end; i++)
+    {
+     page * curr_page = PT->pages[i];
+     printf("__________________________________________________________________\n");
+     printf("Page Number: %d\n",i);
+     printf("Prev Page Address: %x\n",curr_page->prev_page);
+     printf("Next Page Address: %x\n",curr_page->next_page);
+     printf("Owner Thread: %x\n",curr_page->owner);
+     printf("Space Remaining: %d\n",curr_page->space_remaining);
+     printf("Capacity: %d\n",curr_page->capacity);
+     printf("Initialized State: %d\n",curr_page->is_initialized);
+     printf("Mem Block Address: %x\n",curr_page->memBlock);
+     printf("Virtual Address: %x\n",curr_page->virtual_addr);
+     printf("__________________________________________________________________\n");
+    }
+}
+
+
+
+
 
