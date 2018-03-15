@@ -504,7 +504,6 @@ void* mallocDetails(int numReq, char* memBlock)
 	//numLeft is the amount of USABLE space remaining - that is, once you've taken into account the remainder's metadata block
 	int num_left = total - (numReq+4);
 	
-	printf("num left :%d\n", num_left);
 	if (num_left >= 0)
 	{
 		char * leftover_metadata = memBlock+4+numReq;
@@ -660,8 +659,15 @@ void page_clean(page *start)
 {
 	//first clear out the linked list 
 	page * temp = NULL;
+	page* old_start = start;
+	int distanceToMeta = *(int *)old_start->memBlock;
 	while(start  != NULL){
+		if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
+
+				return;
+			}
 		if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
+			
 			temp = start->next_page;
 			start -> is_initialized = false;
 			start -> owner = NULL;
