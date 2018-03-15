@@ -703,14 +703,15 @@ bool my_free(void * target)
                     int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
 					metaFront -= 4;
 					*(int*)curr_page->memBlock = metaFront;
-                }
-            }
-					page_clean(start_page);	
-		    }
+                		}
+            		}
+						page_clean(start_page);	
+		    	}
 		else
 		{
 			//add 4 because space +meta is now free 
 			curr_page -> space_remaining += *(int *)(target-4)+4;
+			page_clean(curr_page);
 		}
 		return true;
 	}
@@ -796,27 +797,32 @@ int swap(page * p1, page * p2)
 void page_clean(page *start)
 {
 	//first clear out the linked list 
-	page * temp = NULL;
-	page* old_start = start;
-	int distanceToMeta = *(int *)old_start->memBlock;
-	while(start  != NULL){
-		if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
-
-				return;
-			}
-		if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
-			
-			temp = start->next_page;
-			start -> is_initialized = false;
-			start -> owner = NULL;
-			start ->next_page = NULL;
-			start -> prev_page = NULL;
-			start = temp;
-			PT->freePages +=1;
-			
+		page * temp = NULL;
+		page* old_start = start;
+		int distanceToMeta = *(int *)old_start->memBlock;
+		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
+				start->is_initialized = false;
 		}
 		else{
-				start = start->next_page;
+		while(start  != NULL){
+			if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
+
+					return;
+				}
+			if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
+			
+				temp = start->next_page;
+				start -> is_initialized = false;
+				start -> owner = NULL;
+				start ->next_page = NULL;
+				start -> prev_page = NULL;
+				start = temp;
+				PT->freePages +=1;
+			
+			}
+			else{
+					start = start->next_page;
+			}
 		}
 	}
 }
