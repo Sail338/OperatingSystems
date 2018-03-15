@@ -200,11 +200,20 @@ void * single_page_alloc(int numRequested,int numOfPages)
 		}
 
 }
-
+/**
+ *This is function is called in the second case where user requests MORE Than a page -4
+ *@param numRequested: num bytes the USER requests
+ * @param numOfPages number of pages in the page table
+ *
+ *
+ *
+ * */
 void * multi_page_alloc(int numRequested,int numOfPages)
 {
 		 //calculate number of pages needed
 		int num_pages_needed = ceil_bytes(numRequested); 
+		//check if there are enough free pages, if not then grab from swap
+		if(PT->freePages >= num_pages_needed){
 		//check if there are n contgious pages in DRAM 	
 		int i;
 		int contig = 0;
@@ -222,6 +231,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			}
 			if(contig == num_pages_needed){
 				void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
+				PT->freePages -= num_pages_needed;
 				return page_alloc(to_alloc,numRequested,false);
 			}
 			else{
@@ -229,15 +239,23 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 					contig = 0;
 					start_contig = NULL;
 				}
-		}
+			}
 
-	}			
+		}			
+	}
 		return NULL;
 }
 
+/**
+ *@param int numBytes: Number of bytes the user requests
+ *
+ *Takes the Ceiling of the number of pages needed better to overestimate than underestimate :>)
+ *
+ * */
 int ceil_bytes(int numBytes)
 {
 	double pg_size = (double)sysconf(_SC_PAGE_SIZE);
+	//add 4 to account for metadata and weird overflow
 	double bytes =  (double)numBytes+4;
 	double divided = bytes/pg_size;
 	int x = (int)divided;
@@ -246,7 +264,15 @@ int ceil_bytes(int numBytes)
 	}
 	return x;
 }
-
+/**
+ * This Function prepares a multi page alloc , basically by building a linked list and setting relvant data 
+ *
+ *@param start : start of a change
+ *@param int: num_pages_needed : Number of pages to chain
+ *@param int: numRequested: Num Bytes the USER requested
+ *
+ *
+ * */
 page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 {
 	//build the linked list and set metadata and set other pages is_init = true
@@ -355,7 +381,7 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 	//allocation must be even
 	numRequested += numRequested %2;
 	//this is for the case that user requests more than a page(taking metadata into account)
-	if ((numRequested+4) > sysconf(_SC_PAGE_SIZE))
+	if (((int)numRequested+4) > sysconf(_SC_PAGE_SIZE))
 	{
 		printf("I HAVE BEEN CALLED!\n");
 		//this is the number of bytes taking up but not necessarily filling the last page
@@ -488,6 +514,7 @@ page *giveNewPage()
 	}
 		//TODO grab from swap if there are no free pages 
 		printf("page pageTable is full :<\n");
+		PT->freePages --;
 		return NULL;	
 }
 
@@ -554,9 +581,12 @@ bool my_free(void * target)
             {
                 int next = *(int*)(start_page->memBlock);
                 int np = (*(int*)(start_page->memBlock+4+next));
+				//last page has no data
                 if(np % 2 == 0)
                 {
                     curr_page-> space_remaining = sysconf(_SC_PAGE_SIZE);
+					
+					
                 }
                 else
                 {
@@ -567,7 +597,7 @@ bool my_free(void * target)
 					*(int*)curr_page->memBlock = metaFront;
                 }
             }
-			page_clean(start_page);	
+					page_clean(start_page);	
 		    }
 		else
 		{
@@ -674,6 +704,7 @@ void page_clean(page *start)
 			start ->next_page = NULL;
 			start -> prev_page = NULL;
 			start = temp;
+			PT->freePages +=1;
 			
 		}
 		else{
@@ -699,14 +730,14 @@ void  page_table_string(int start, int end)
      page * curr_page = PT->pages[i];
      printf("__________________________________________________________________\n");
      printf("Page Number: %d\n",i);
-     printf("Prev Page Address: %x\n",curr_page->prev_page);
-     printf("Next Page Address: %x\n",curr_page->next_page);
-     printf("Owner Thread: %x\n",curr_page->owner);
+     printf("Prev Page Address: %p\n",curr_page->prev_page);
+     printf("Next Page Address: %p\n",curr_page->next_page);
+     printf("Owner Thread: %p\n",curr_page->owner);
      printf("Space Remaining: %d\n",curr_page->space_remaining);
      printf("Capacity: %d\n",curr_page->capacity);
      printf("Initialized State: %d\n",curr_page->is_initialized);
-     printf("Mem Block Address: %x\n",curr_page->memBlock);
-     printf("Virtual Address: %x\n",curr_page->virtual_addr);
+     printf("Mem Block Address: %p\n",curr_page->memBlock);
+     printf("Virtual Address: %p\n",curr_page->virtual_addr);
      printf("__________________________________________________________________\n");
     }
 }
