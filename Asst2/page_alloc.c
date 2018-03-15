@@ -141,13 +141,14 @@ void* osmalloc(int bytes)
  * */
 void *mymalloc(size_t numRequested)
 {
-	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int numPages = (DRAM_SIZE-OSLAND)/pageSize;
 	if (!PAGE_TABLE_INIT)
 	{
 		page_table_initialize(pageSize, numPages);
 	}
+
+	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
@@ -184,7 +185,6 @@ void * single_page_alloc(int numRequested,int numOfPages)
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
-				printf("SPACE REMAINING IS %d\n",ptr->space_remaining);
 				if(ptr->space_remaining >= ((int)numRequested)+4){
 					while(ptr->prev_page != NULL)
 					{
