@@ -151,7 +151,7 @@ void *mymalloc(size_t numRequested)
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
-		return case_1(numRequested,numPages);
+		return single_page_alloc(numRequested,numPages);
 	}
 
 	//case 2 MORE THAN A PAGE
@@ -169,7 +169,7 @@ void *mymalloc(size_t numRequested)
  @param numPages numOfPages total in the pagetable
  *this is the helper function for case 1 less than a page
  * */
-void *case_1(int numRequested,int numOfPages)
+void * single_page_alloc(int numRequested,int numOfPages)
 {
 
 		threadNode * curr = scheduler->current;
@@ -178,9 +178,10 @@ void *case_1(int numRequested,int numOfPages)
 		for(i=0;i<numOfPages;i++){
 			page* ptr = PT->pages[i];
 			if(ptr->owner == curr){		
-				printf("SPACE REAMING IS %d\n",ptr->space_remaining);
+				printf("SPACE REMAINING IS %d\n",ptr->space_remaining);
 				if(ptr->space_remaining >= ((int)numRequested)+4){
-					while(ptr->prev_page != NULL){
+					while(ptr->prev_page != NULL)
+					{
 						ptr = ptr -> prev_page;
 					}
 					void *first_try = page_alloc(ptr,numRequested,false);
@@ -199,6 +200,7 @@ void *case_1(int numRequested,int numOfPages)
 		}
 
 }
+
 void * multi_page_alloc(int numRequested,int numOfPages)
 {
 		 //calculate number of pages needed
@@ -493,18 +495,26 @@ page *giveNewPage()
  *@param numReq number of bytes passed requested
  @param the block of memory operating os (for OSmod its osland)
  *Helper function to update metadatas
+	if the amount a user requests+its metadata leaves remaining bytes too small to be their own metadata, those extra bytes are consolidated into the amount the user is given
  *
  * */
 void* mallocDetails(int numReq, char* memBlock)
 {
-	int total = *( int*)memBlock;
-	if (total > numReq)
+	int total = *(int*)memBlock;	
+	//numLeft is the amount of USABLE space remaining - that is, once you've taken into account the remainder's metadata block
+	int num_left = total - (numReq+4);
+	
+	printf("num left :%d\n", num_left);
+	if (num_left >= 0)
 	{
-		char * leftovers = memBlock+4+numReq;
-		*(int *)leftovers = total-(numReq+4);
+		char * leftover_metadata = memBlock+4+numReq;
+		*(int *)leftover_metadata = num_left;
+		*(int*)memBlock = numReq+1;
 	}
-	*(int*)memBlock = numReq+1;
-	//printf("remaining free space: %hu \n", *(unsigned short*)(index+2+numReq*(sizeof(char))));
+	else
+	{
+		*(int *) memBlock +=1;
+	}
 	return (void*)(memBlock+4*sizeof(char));
 }
 
@@ -554,7 +564,8 @@ bool my_free(void * target)
 					curr_page ->prev_page = NULL;
 					//got the next metadata and subtract the start oof the first page and it should give u the diff
                     int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
-                    *(int*)curr_page->memBlock = metaFront;
+					metaFront -= 4;
+					*(int*)curr_page->memBlock = metaFront;
                 }
             }
 			page_clean(start_page);	

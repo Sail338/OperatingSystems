@@ -52,7 +52,7 @@ void * osmalloc(int);
 
 void *mymalloc(size_t);
 
-void *case_1(int,int);
+void * single_page_alloc(int,int);
 
 void* multi_page_alloc(int,int);
 
