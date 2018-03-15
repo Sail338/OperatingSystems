@@ -605,7 +605,6 @@ void defrag (page * curr_page,bool os_mode)
  * */
 page *giveNewPage()
 {
-	printf("I SHOULD NEVER BE CALLED \n");
 	int numOfPages = (DRAM_SIZE-OSLAND)/(sysconf(_SC_PAGE_SIZE));
 	int i;
 	for(i=0;i<numOfPages;i++){
@@ -802,6 +801,7 @@ void page_clean(page *start)
 		int distanceToMeta = *(int *)old_start->memBlock;
 		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
 				start->is_initialized = false;
+				start->owner = NULL;
 		}
 		else{
 		while(start  != NULL){
