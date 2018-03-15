@@ -3,28 +3,28 @@
 int thread();
 
 int main()
+
 {
-	char *x[NUM_PAGES];
 	int i;
+	char *x[NUM_PAGES];
 	for(i=0;i<NUM_PAGES;i++){
 		x[i] = mymalloc(3000);
 	}
 	for(i=0;i<NUM_PAGES;i++){
-		if(i%2 ==0){
-			printf("Hello\n");
+		if(i%2 == 0){
 			my_free(x[i]);
-
 		}
 	}
-	page_table_string(0,NUM_PAGES);
-//	pthread_t t;
-//	pthread_create(&t,NULL,(void*)thread,NULL);
-//	while(1);
-	
+	//page_table_string(0,1);
+	pthread_t t;
+	pthread_create(&t,NULL,(void*)thread,NULL);
+	pthread_join(t,NULL);	
 
 }
 int thread(){
+	printf("Swapped in\n");	
 	char *y = mymalloc(8000);
-	page_table_string(0,NUM_PAGES);
+	printf("address of y is %p",y);
+//	page_table_string(0,10);
 	
 }
