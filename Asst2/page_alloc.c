@@ -282,7 +282,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 {
 		//first enter sys mode
 		//unprotect all the pages so we can page swap
-		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_NONE);
+		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
 		//current pointer to the endBlock (last free page)
 		page *end_page = find_page(currentLargest->memBlock + sizeCurrentLargest*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
@@ -346,7 +346,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 	for(i=0;i<NUM_PAGES;i++){
 		if(scheduler ->current != PT->pages[i]->owner){
 
-			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
@@ -464,7 +464,6 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
 	if(usable_space != NULL && !os_mode){
-		printf("Space REMAINING BEFORE SUBTRACTION IS %d\n",curr_page->space_remaining);		
 
 		curr_page ->space_remaining -= (numRequested + 4);
 	}
@@ -775,6 +774,7 @@ int swap(page * p1, page * p2)
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
+	printf("Trying to acess data %d",*(int *)p1->memBlock);
     memcpy(temp,p1->memBlock,pageSize);
     memcpy(p1->memBlock,p2->memBlock,pageSize);
     memcpy(p2->memBlock,temp,pageSize);
