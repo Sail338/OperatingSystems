@@ -294,7 +294,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 		//intialize what we are going to return to NULL
 		page* to_ret = NULL;
 		//check if 2 after the last page of free block is outside of out threashold
-		if(end_page->memBlock + 2*sysconf(_SC_PAGE_SIZE) >= end){
+		if(end_page->memBlock + 2*sysconf(_SC_PAGE_SIZE) < end){
 			 curr = end_page->memBlock + 2*sysconf(_SC_PAGE_SIZE);
 		}
 		//expand to end
