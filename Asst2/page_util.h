@@ -9,10 +9,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 //#define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
-
+#define DRAM_SIZE 8388608
+#define NUM_PAGES  (DRAM_SIZE-OSLAND)/sysconf(_SC_PAGE_SIZE)
 typedef struct page
 {
 	//for contigous pages	
@@ -85,4 +87,11 @@ int swap(page*, page*);
 void page_clean();
 
 void page_table_string();
+
+void protect_my_pages();
+
+void unProtect_my_pages(threadNode*);
+
+page* page_defrag(page*,int,int);
+
 #endif
