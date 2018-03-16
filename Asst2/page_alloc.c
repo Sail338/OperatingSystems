@@ -23,6 +23,7 @@ void page_init(page * curr_page)
 {
 	int i = 0;
 	int capacity = curr_page -> capacity;
+	printf("%d",*(int *)curr_page->memBlock);
 	for (i=0; i < capacity; i++)
 	{
 		curr_page->memBlock[i] = '0';
@@ -283,7 +284,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 {
 		//first enter sys mode
 		//unprotect all the pages so we can page swap
-		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+	//	mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
 		//current pointer to the endBlock (last free page)
 		page *end_page = find_page(currentLargest->memBlock + sizeCurrentLargest*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
@@ -349,7 +350,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 			if(PT->pages[i] == NULL){
 				continue;
 			}	
-			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+		//	mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
