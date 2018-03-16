@@ -319,7 +319,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 		//check if there are n contgious pages in DRAM 	
 			int i;
 			int contig = 0;
-			int max = -1;
+			int max = 0;
 			page *max_contig = NULL;
 			page *start_contig = NULL;
 			
@@ -349,9 +349,13 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 					}
 				}
 
-			}			
-			//if for loop is done and we cannot find anything then pass in max_contig
-			page *ret = page_defrag(max_contig,max,num_pages_needed);
+            }
+            page * ret = NULL;
+            if(max_contig != NULL)
+            {
+			    //if for loop is done and we cannot find anything then pass in max_contig
+                ret = page_defrag(max_contig,max,num_pages_needed);
+            }
 		//	page * ret = NULL;
 			if(ret == NULL){
 				//swap from swap file
@@ -488,15 +492,15 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 	for(i=0;i<num_pages_needed;i++)
 	{
 		if(ptr == start){
-			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));	
+			start -> next_page = find_page(start->memBlock + sysconf(_SC_PAGE_SIZE));	
 
 		}
 		else{
-			ptr ->prev_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i-1));
+			ptr ->prev_page = find_page(ptr->memBlock - sysconf(_SC_PAGE_SIZE));
 			//so we dont go out of bounds
 			if(i != num_pages_needed -1){
 
-				ptr ->next_page  = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));
+				ptr ->next_page  = find_page(ptr->memBlock + sysconf(_SC_PAGE_SIZE));
 			} 
 			else{
 				ptr ->next_page = NULL;
@@ -584,7 +588,6 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
 	//this is for the case that user requests more than a page(taking metadata into account)
 	if (((int)numRequested+4) > sysconf(_SC_PAGE_SIZE))
 	{
-		printf("I HAVE BEEN CALLED!\n");
 		//this is the number of bytes taking up but not necessarily filling the last page
 		int overflow = (numRequested+4)%sysconf(_SC_PAGE_SIZE);
 		//in case user uses a very small number of bytes on the last page,so that when it is freed there may either be not enough space for a metadata block, or just enough for a metadata block but no user data between it and the next block
@@ -710,13 +713,12 @@ page *giveNewPage()
 				PT->pages[i]->owner  = scheduler -> current;
 				//set virtualadess = memBlock, this is the VA is what user acess, so basically VA == Inital adress
 				PT->pages[i]->virtual_addr = PT->pages[i]->memBlock;
+                PT->freePages--;
 				return PT->pages[i];
 
 			}
 	}
 		//TODO grab from swap if there are no free pages 
-		printf("page pageTable is full :<\n");
-		PT->freePages --;
 		return NULL;	
 }
 
@@ -908,6 +910,7 @@ void page_clean(page *start)
 		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
 				start->is_initialized = false;
 				start->owner = NULL;
+                PT->freePages += 1;
 		}
 		else{
 		while(start  != NULL){
