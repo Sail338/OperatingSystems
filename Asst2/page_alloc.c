@@ -2,9 +2,8 @@
 
 
 
-static void page_fault_handler(int sig, siginfo_t *si, void *unsued)
+void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 {
-   printf("In the Page Fault Signal Handler!\n");
    unprotectAll();
    page * real_page = find_page_virtual_addr(si->si_addr);
    page * fake_page = find_page(si->si_addr);
@@ -16,6 +15,7 @@ static void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    void * curr = fake_page->memBlock;
    if(real_page->prev_page == NULL && real_page->next_page == NULL)
    {
+    printf("REAL PAGE: %p\n\nFAKE PAGE: %p\n",real_page,fake_page);
     swap(real_page,fake_page);
    }
    while(real_page->prev_page != NULL)
@@ -25,13 +25,13 @@ static void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    }
    while(real_page->next_page != NULL)
    {
+        printf("Multi-Page Swap!\n");
         page * swapped = find_page(curr);
         swap(real_page,swapped);
         real_page = real_page->next_page;
         curr += sysconf(_SC_PAGE_SIZE);
    }
    protectAll();
-   printf("Finished Page Fault Hanlder!\n");
 
 }
 
@@ -51,8 +51,7 @@ void protectAll()
             {
 				continue;
 			}	
-            printf("Virutal Addr Protect: %p\n",PT->pages[i]->virtual_addr);
-			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+			mprotect(PT->pages[i]->virtual_addr,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
@@ -114,13 +113,13 @@ void page_table_initialize(int pageSize, int numOfPages)
 {
 	//initialize page table and then scheduler
     //allocate space for the pageTable struct 	
-    struct sigaction sa;
-    sa.sa_flags = SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_sigaction = page_fault_handler;
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
    	PT->freePages = numOfPages;
     PT->pages = osmalloc(sizeof(page*)*numOfPages);
+    PT->sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&PT->sa.sa_mask);
+    PT->sa.sa_sigaction = page_fault_handler;
+    sigaction(SIGSEGV,&PT->sa,NULL);
     void * ptr = (void*)(DRAM + OSLAND);
 	int i;
 	//initializing the pages in page table with default values
@@ -859,7 +858,6 @@ int swap(page * p1, page * p2)
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
-	printf("Trying to acess data %d",*(int *)p1->memBlock);
     memcpy(temp,p1->memBlock,pageSize);
     memcpy(p1->memBlock,p2->memBlock,pageSize);
     memcpy(p2->memBlock,temp,pageSize);

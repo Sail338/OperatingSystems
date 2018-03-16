@@ -16,12 +16,10 @@ int main()
 		}
 	}
 
-	page_table_string(0,4);
 	pthread_t t;
 	pthread_create(&t,NULL,(void*)thread,NULL);
 	pthread_join(t,NULL);
-    printf("\n\nTHERE SHOULD BE NOTHING HERE: %d\n",x[1]);
-    page_table_string(0,4);
+    //page_table_string(0,4);
 
 }
 int thread(){

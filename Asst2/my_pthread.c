@@ -112,8 +112,7 @@ void protect_my_pages()
 	int i;
 	for(i=0;i<num_pages;i++){
 		if(PT->pages[i]->owner == scheduler ->current){
-
-				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+				mprotect(PT->pages[i]->virtual_addr,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 			}
 
 	}	

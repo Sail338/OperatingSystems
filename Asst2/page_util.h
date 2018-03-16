@@ -33,6 +33,7 @@ typedef struct pageTable
 {
     page ** pages;
     short freePages;
+    struct sigaction sa;
 }pageTable;
 
 pageTable * PT;
