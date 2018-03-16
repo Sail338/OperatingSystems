@@ -78,9 +78,9 @@ int getKey(void * virtualAddr)
         if (ptr == virtualAddr)
 		{
             return i;
-        ptr += pageSize;
 		}
-
+        
+        ptr += pageSize;
         i += 1;
     }
     return -1;
@@ -286,7 +286,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 		//unprotect all the pages so we can page swap
 		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
 		//current pointer to the endBlock (last free page)
-		page *end_page = find_page(currentLargest->memBlock + sizeCurrentLargest*sysconf(_SC_PAGE_SIZE));	
+		page *end_page = find_page(currentLargest->memBlock + (sizeCurrentLargest-1)*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
 		char *end = DRAM + OSLAND + (NUM_PAGES *(sysconf(_SC_PAGE_SIZE)));
 		//number of pages we have currently
@@ -793,6 +793,11 @@ int swap(page * p1, page * p2)
     p2->memBlock = t;
     int p1Info = getKey(p1->memBlock);
     int p2Info = getKey(p2->memBlock);
+    if(p1Info == -1 || p2Info == -1)
+    {
+        printf("Error in swap, virtual Address CANNOT be found!\n");
+        return -1;
+    }
     page * tempPtr = PT->pages[p1Info];
     PT->pages[p1Info] = PT->pages[p2Info];
     PT->pages[p2Info] = tempPtr;
