@@ -1,6 +1,79 @@
 #include "page_util.h"
 
 
+
+static void page_fault_handler(int sig, siginfo_t *si, void *unsued)
+{
+   printf("In the Page Fault Signal Handler!\n");
+   unprotectAll();
+   page * real_page = find_page_virtual_addr(si->si_addr);
+   page * fake_page = find_page(si->si_addr);
+   if(real_page == NULL || fake_page == NULL)
+   {
+    return;
+   }
+   int i;
+   void * curr = fake_page->memBlock;
+   if(real_page->prev_page == NULL && real_page->next_page == NULL)
+   {
+    swap(real_page,fake_page);
+   }
+   while(real_page->prev_page != NULL)
+   {
+    real_page = real_page->prev_page;
+    curr -= sysconf(_SC_PAGE_SIZE);
+   }
+   while(real_page->next_page != NULL)
+   {
+        page * swapped = find_page(curr);
+        swap(real_page,swapped);
+        real_page = real_page->next_page;
+        curr += sysconf(_SC_PAGE_SIZE);
+   }
+   protectAll();
+   printf("Finished Page Fault Hanlder!\n");
+
+}
+
+void unprotectAll()
+{
+   mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+}
+
+void protectAll()
+{
+    int i;
+	for(i=0;i<NUM_PAGES;i++)
+    {
+	    if(scheduler ->current != PT->pages[i]->owner)
+        {
+			if(PT->pages[i]->owner == NULL)
+            {
+				continue;
+			}	
+            printf("Virutal Addr Protect: %p\n",PT->pages[i]->virtual_addr);
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+		}
+
+	}
+}
+
+
+page * find_page_virtual_addr(void * target)
+{
+    int i;
+    for(i = 0; i < NUM_PAGES; i++)
+    {
+        if(PT->pages[i]->owner == scheduler->current 
+                && (char*)target >= PT->pages[i]->virtual_addr
+                && (char*)target <= PT->pages[i]->virtual_addr+sysconf(_SC_PAGE_SIZE))
+        {
+            return PT->pages[i];
+        }
+    }
+    return NULL;
+}
+
 /**
  * Initializes DRAM , gives us 8 MB with memalign and then 0s out OSSPACE
  * and then sets the metadata in OSSPACE to the appropriate amount
@@ -41,6 +114,10 @@ void page_table_initialize(int pageSize, int numOfPages)
 {
 	//initialize page table and then scheduler
     //allocate space for the pageTable struct 	
+    struct sigaction sa;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = page_fault_handler;
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
    	PT->freePages = numOfPages;
     PT->pages = osmalloc(sizeof(page*)*numOfPages);
@@ -286,7 +363,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 {
 		//first enter sys mode
 		//unprotect all the pages so we can page swap
-		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+        unprotectAll();
 		//current pointer to the endBlock (last free page)
 		page *end_page = find_page(currentLargest->memBlock + (sizeCurrentLargest-1)*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
@@ -346,16 +423,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 
 	}
 	//protect the pages again and set sysmode back to false
-	int i;
-	for(i=0;i<NUM_PAGES;i++){
-		if(scheduler ->current != PT->pages[i]->owner){
-			if(PT->pages[i]->owner == NULL){
-				continue;
-			}	
-			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
-		}
-
-	}
+    protectAll();
 	return to_ret;
 
 }

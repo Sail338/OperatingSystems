@@ -26,7 +26,7 @@ typedef struct page
 	int capacity;
 	bool is_initialized;
 	char * memBlock;
-    void * virtual_addr;
+    char * virtual_addr;
 } page;
 
 typedef struct pageTable
@@ -94,4 +94,11 @@ void unProtect_my_pages(threadNode*);
 
 page* page_defrag(page*,int,int);
 
+page * find_page_virtual_addr(void*);
+
+static void page_fault_handler(int,siginfo_t *, void*);
+
+void unprotectAll();
+
+void protectAll();
 #endif
