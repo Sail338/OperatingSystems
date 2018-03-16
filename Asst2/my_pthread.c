@@ -68,8 +68,8 @@ void yield_sig_handler(int signum)
    setitimer(ITIMER_VIRTUAL,0,NULL);
    //schedulerString();
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
-  threadNode * temp = scheduler -> current;
-  protect_my_pages();
+	 threadNode * temp = scheduler -> current;
+   protect_my_pages();
   if(temp == NULL){
     temp = dequeue(0);
 	unProtect_my_pages(temp);

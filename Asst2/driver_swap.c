@@ -26,5 +26,6 @@ int thread(){
 	char *y = mymalloc(8000);
 	printf("address of y is %p",y);
 //	page_table_string(0,10);
+	pthread_exit(NULL);
 	
 }
