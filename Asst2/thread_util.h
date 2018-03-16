@@ -30,7 +30,7 @@
 #define pthread_mutex_destroy my_pthread_mutex_destroy
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t
-#define MEM 4096
+#define MEM 64000
 
  typedef struct threadControlBlock 
 {

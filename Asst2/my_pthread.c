@@ -68,9 +68,14 @@ void yield_sig_handler(int signum)
    setitimer(ITIMER_VIRTUAL,0,NULL);
    //schedulerString();
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
-  threadNode * temp = scheduler -> current;
+  //
+	 threadNode * temp = scheduler -> current;
+	if(temp != NULL){
+		protect_my_pages();
+	}
   if(temp == NULL){
     temp = dequeue(0);
+	unProtect_my_pages(temp);
     scheduler->current = temp;
     setitimer(ITIMER_VIRTUAL, &(scheduler->timer), NULL);
     setcontext(&(scheduler->current->thread));
@@ -84,9 +89,11 @@ void yield_sig_handler(int signum)
     //DEQUEUE a Node
     //dequeuedNode = dequeue((scheduler ->current->qlevel)); GOING TO DEQUEUE 0
     dequeuedNode = dequeue(0);
+	
     if(dequeuedNode == NULL){
         return;
     }
+	unProtect_my_pages(dequeuedNode);
     //set the current equal to the dqed Node
     scheduler -> current = dequeuedNode;
     scheduler->current->next = NULL;
@@ -96,6 +103,41 @@ void yield_sig_handler(int signum)
     swapcontext(&(temp->thread),&(scheduler -> current->thread));
     
   }
+}
+/**
+ *
+ *protects a threads pages (the current context)
+ *
+ * */
+void protect_my_pages()
+{
+	int num_pages = (DRAM_SIZE - OSLAND)/sysconf(_SC_PAGE_SIZE);
+	int i;
+	for(i=0;i<num_pages;i++){
+		if(PT->pages[i]->owner == scheduler ->current){
+				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+			}
+
+	}	
+
+}
+/**
+ *unprotect pages 
+ *@param unprotect: the threads page to unprotect
+ *
+ *
+ * */
+void unProtect_my_pages(threadNode* unprotect)
+{
+	
+	int num_pages = (DRAM_SIZE-OSLAND)/sysconf(_SC_PAGE_SIZE);
+	int i;
+	for(i=0;i<num_pages;i++){
+			if(PT->pages[i]->owner == unprotect){
+				mprotect(PT->pages[i]->memBlock, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE); 
+			}
+	}
+
 }
 
 /* create a new thread */
@@ -150,6 +192,7 @@ void my_pthread_exit(void *value_ptr)
     //2. Call yeild
     //Yield can assume empty current
    // free(toBeDeleted->thread.uc_stack.ss_sp);
+   	protect_my_pages();
     scheduler->current = NULL;
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
@@ -219,7 +262,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
 {
-	//mutex = (my_pthread_mutex_t *)osmalloc(sizeof(my_pthread_mutex_t));
+	//mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
 	{
