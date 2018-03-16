@@ -256,8 +256,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 
 			}			
 			//if for loop is done and we cannot find anything then pass in max_contig
-//			page *ret = page_defrag(max_contig,max,num_pages_needed);
-			page *ret = NULL;
+			page *ret = page_defrag(max_contig,max,num_pages_needed);
 			if(ret == NULL){
 				//swap from swap file
 				return NULL;
@@ -285,7 +284,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 {
 		//first enter sys mode
 		//unprotect all the pages so we can page swap
-	//	mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
 		//current pointer to the endBlock (last free page)
 		page *end_page = find_page(currentLargest->memBlock + sizeCurrentLargest*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
@@ -348,10 +347,10 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 	int i;
 	for(i=0;i<NUM_PAGES;i++){
 		if(scheduler ->current != PT->pages[i]->owner){
-			if(PT->pages[i] == NULL){
+			if(PT->pages[i]->owner == NULL){
 				continue;
 			}	
-		//	mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
@@ -628,6 +627,7 @@ page *giveNewPage()
 		PT->freePages --;
 		return NULL;	
 }
+
 
 /**
  *@param numReq number of bytes passed requested
