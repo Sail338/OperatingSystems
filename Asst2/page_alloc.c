@@ -79,8 +79,9 @@ int getKey(void * virtualAddr)
 		{
             return i;
         ptr += pageSize;
-        i += 1;
 		}
+
+        i += 1;
     }
     return -1;
 }
