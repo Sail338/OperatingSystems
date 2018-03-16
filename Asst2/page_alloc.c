@@ -394,6 +394,8 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 	start -> space_remaining = start ->capacity;
 	start -> owner = scheduler -> current;
 	start->is_initialized = true;
+	//set intial adress = memBlock so we can swap back, because usr will a;ways acess va
+	start->virtual_addr = start->memBlock;
 	page * ptr = start;
 	page_init(ptr);	
 	int i;
@@ -416,6 +418,7 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 			}
 
 			if(ptr != start){
+				ptr->virtual_addr = ptr->memBlock;
 				ptr->owner = scheduler ->current;
 				ptr ->space_remaining = 0;
 				ptr ->is_initialized = true;
@@ -620,6 +623,8 @@ page *giveNewPage()
 				//TODO should pick a victim and swap in a new page from swap
 				//set owner equal to current
 				PT->pages[i]->owner  = scheduler -> current;
+				//set virtualadess = memBlock, this is the VA is what user acess, so basically VA == Inital adress
+				PT->pages[i]->virtual_addr = PT->pages[i]->memBlock;
 				return PT->pages[i];
 
 			}
