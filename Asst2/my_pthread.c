@@ -68,8 +68,11 @@ void yield_sig_handler(int signum)
    setitimer(ITIMER_VIRTUAL,0,NULL);
    //schedulerString();
   //set a temp node to current which is context that we ARE GOING TO SWAP OUT
+  //
 	 threadNode * temp = scheduler -> current;
-   protect_my_pages();
+	if(temp != NULL){
+		protect_my_pages();
+	}
   if(temp == NULL){
     temp = dequeue(0);
 	unProtect_my_pages(temp);
@@ -112,7 +115,7 @@ void protect_my_pages()
 	int i;
 	for(i=0;i<num_pages;i++){
 		if(PT->pages[i]->owner == scheduler ->current){
-				mprotect(PT->pages[i]->virtual_addr,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 			}
 
 	}	
@@ -189,6 +192,7 @@ void my_pthread_exit(void *value_ptr)
     //2. Call yeild
     //Yield can assume empty current
    // free(toBeDeleted->thread.uc_stack.ss_sp);
+   	protect_my_pages();
     scheduler->current = NULL;
     toBeDeleted->term = 1;
     if(toBeDeleted->waitingNodes != NULL){
