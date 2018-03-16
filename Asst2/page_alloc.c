@@ -701,13 +701,12 @@ page *giveNewPage()
 				PT->pages[i]->owner  = scheduler -> current;
 				//set virtualadess = memBlock, this is the VA is what user acess, so basically VA == Inital adress
 				PT->pages[i]->virtual_addr = PT->pages[i]->memBlock;
+                PT->freePages--;
 				return PT->pages[i];
 
 			}
 	}
 		//TODO grab from swap if there are no free pages 
-		printf("page pageTable is full :<\n");
-		PT->freePages --;
 		return NULL;	
 }
 
@@ -899,6 +898,7 @@ void page_clean(page *start)
 		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
 				start->is_initialized = false;
 				start->owner = NULL;
+                PT->freePages += 1;
 		}
 		else{
 		while(start  != NULL){
