@@ -128,11 +128,11 @@ void* osmalloc(int bytes)
 			DRAM_initialize();
 			DRAM_INIT =1;
 	}
-	void  *x =page_alloc(NULL,bytes,true);	
-	if(x >= (void *)(DRAM + OSLAND))
+	void  *x =malloc(bytes);	
+	/*if(x >= (void *)(DRAM + OSLAND))
 	{
 		return NULL;
-	}
+	}*/
 	return x;
 }
 
@@ -216,6 +216,7 @@ void * single_page_alloc(int numRequested,int numOfPages)
  *
  * */
 void * multi_page_alloc(int numRequested,int numOfPages)
+
 {
 		 //calculate number of pages needed
 		int num_pages_needed = ceil_bytes(numRequested); 
@@ -257,6 +258,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			}			
 			//if for loop is done and we cannot find anything then pass in max_contig
 			page *ret = page_defrag(max_contig,max,num_pages_needed);
+		//	page * ret = NULL;
 			if(ret == NULL){
 				//swap from swap file
 				return NULL;
@@ -284,7 +286,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 {
 		//first enter sys mode
 		//unprotect all the pages so we can page swap
-		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+//		mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
 		//current pointer to the endBlock (last free page)
 		page *end_page = find_page(currentLargest->memBlock + (sizeCurrentLargest-1)*sysconf(_SC_PAGE_SIZE));	
 		//END OF DRAM
@@ -325,7 +327,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 	//PART two: if we couldnt find enough pages to swap, expand from the start backwards	
 	else{
 		curr = currentLargest ->memBlock - 2*(sysconf(_SC_PAGE_SIZE));
-		while(page_current < numNeeded && curr > DRAM+OSLAND-1){
+		while(page_current < numNeeded && curr > DRAM+OSLAND){
 			//find the page that ihe current memBlock is pointing to
 			page *check_if_free = find_page(curr);
 			//if that page is free swap with the end and incremnt what we have by one
@@ -350,7 +352,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 			if(PT->pages[i]->owner == NULL){
 				continue;
 			}	
-			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+//			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
