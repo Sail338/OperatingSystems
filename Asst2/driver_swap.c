@@ -19,8 +19,8 @@ int main()
 	pthread_t t;
 	pthread_create(&t,NULL,(void*)thread,NULL);
 	pthread_join(t,NULL);
-    //page_table_string(0,4);
-
+    page_table_string(0,4);
+	printf("%p",x[1]);
 }
 int thread(){
 	printf("Swapped in\n");	

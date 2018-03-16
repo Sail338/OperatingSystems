@@ -18,12 +18,12 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
     printf("REAL PAGE: %p\n\nFAKE PAGE: %p\n",real_page,fake_page);
     swap(real_page,fake_page);
    }
-   while(real_page->prev_page != NULL)
+   while(real_page != NULL)
    {
     real_page = real_page->prev_page;
     curr -= sysconf(_SC_PAGE_SIZE);
    }
-   while(real_page->next_page != NULL)
+   while(real_page != NULL)
    {
         printf("Multi-Page Swap!\n");
         page * swapped = find_page(curr);
@@ -37,7 +37,12 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 
 void unprotectAll()
 {
-   mprotect(DRAM + OSLAND,NUM_PAGES*sysconf(_SC_PAGE_SIZE),PROT_READ | PROT_WRITE);
+	int i;	
+	for(i=0;i<NUM_PAGES;i++)
+    {
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE);
+
+	}
 }
 
 void protectAll()
@@ -47,11 +52,11 @@ void protectAll()
     {
 	    if(scheduler ->current != PT->pages[i]->owner)
         {
-			if(PT->pages[i]->owner == NULL)
+			if(PT->pages[i]->owner != NULL)
             {
 				continue;
 			}	
-			mprotect(PT->pages[i]->virtual_addr,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
@@ -92,6 +97,7 @@ int DRAM_initialize()
 
 //set initial amount of free space and zero out the array in case of garbage null terminators
 void page_init(page * curr_page)
+
 {
 	int i = 0;
 	int capacity = curr_page -> capacity;
