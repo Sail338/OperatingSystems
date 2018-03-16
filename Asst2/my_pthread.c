@@ -113,7 +113,7 @@ void protect_my_pages()
 	for(i=0;i<num_pages;i++){
 		if(PT->pages[i]->owner == scheduler ->current){
 
-				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+				//mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 			}
 
 	}	
@@ -132,7 +132,7 @@ void unProtect_my_pages(threadNode* unprotect)
 	int i;
 	for(i=0;i<num_pages;i++){
 			if(PT->pages[i]->owner == unprotect){
-				mprotect(PT->pages[i]->owner, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE); 
+				//mprotect(PT->pages[i]->owner, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE); 
 			}
 	}
 
@@ -259,7 +259,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) 
 {
-	//mutex = (my_pthread_mutex_t *)osmalloc(sizeof(my_pthread_mutex_t));
+	//mutex = (my_pthread_mutex_t *)malloc(sizeof(my_pthread_mutex_t));
 	//if not enough memory to alloc for new mutex
 	if (mutex)
 	{

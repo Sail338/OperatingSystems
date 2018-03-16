@@ -23,7 +23,6 @@ void page_init(page * curr_page)
 {
 	int i = 0;
 	int capacity = curr_page -> capacity;
-	printf("%d",*(int *)curr_page->memBlock);
 	for (i=0; i < capacity; i++)
 	{
 		curr_page->memBlock[i] = '0';
@@ -257,7 +256,8 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 
 			}			
 			//if for loop is done and we cannot find anything then pass in max_contig
-			page *ret = page_defrag(max_contig,max,num_pages_needed);
+//			page *ret = page_defrag(max_contig,max,num_pages_needed);
+			page *ret = NULL;
 			if(ret == NULL){
 				//swap from swap file
 				return NULL;
@@ -270,6 +270,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			}
 			
 		}
+
 		return NULL;
 }
 
@@ -671,6 +672,7 @@ bool os_free(void * target)
  * */
 bool my_free(void * target)
 {
+	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
 	bool freed = page_free(target, false);
 	if (freed == true)
 	{
@@ -715,8 +717,12 @@ bool my_free(void * target)
 			curr_page -> space_remaining += *(int *)(target-4)+4;
 			page_clean(curr_page);
 		}
+
+		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 		return true;
 	}
+
+	__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	return false;
 }
 
