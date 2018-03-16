@@ -1,15 +1,23 @@
 #include "page_util.h"
 
 
-
+/**
+ *the page_fault handler
+ *
+ *
+ * */
 void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 {
-	printf("SEGFAULTED\n");
+   printf("SEGFAULTED\n");
+   //unprotect all the pages to swap
    unprotectAll();
+  
    page * real_page = find_page_virtual_addr(si->si_addr);
    page * fake_page = find_page(si->si_addr);
    if(real_page == NULL || fake_page == NULL)
    {
+	printf("Invalid Acess, Segfault!");
+	exit(1);
     return;
    }
    int i;
@@ -31,6 +39,7 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
         real_page = real_page->next_page;
         curr += sysconf(_SC_PAGE_SIZE);
    }
+   //protect all the pages
    protectAll();
 
 }
@@ -44,7 +53,10 @@ void unprotectAll()
 
 	}
 }
-
+/**
+ *
+ *
+ * */
 void protectAll()
 {
     int i;
