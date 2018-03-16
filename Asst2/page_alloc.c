@@ -345,7 +345,9 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 	int i;
 	for(i=0;i<NUM_PAGES;i++){
 		if(scheduler ->current != PT->pages[i]->owner){
-
+			if(PT->pages[i] == NULL){
+				continue;
+			}	
 			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
@@ -781,8 +783,8 @@ int swap(page * p1, page * p2)
     void * t = p1->memBlock;
     p1->memBlock = p2->memBlock;
     p2->memBlock = t;
-    int p1Info = getKey(p1->virtual_addr);
-    int p2Info = getKey(p2->virtual_addr);
+    int p1Info = getKey(p1->memBlock);
+    int p2Info = getKey(p2->memBlock);
     page * tempPtr = PT->pages[p1Info];
     PT->pages[p1Info] = PT->pages[p2Info];
     PT->pages[p2Info] = tempPtr;
