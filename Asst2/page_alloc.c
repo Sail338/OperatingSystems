@@ -307,7 +307,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 		//check if there are n contgious pages in DRAM 	
 			int i;
 			int contig = 0;
-			int max = -1;
+			int max = 0;
 			page *max_contig = NULL;
 			page *start_contig = NULL;
 			
@@ -337,9 +337,13 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 					}
 				}
 
-			}			
-			//if for loop is done and we cannot find anything then pass in max_contig
-			page *ret = page_defrag(max_contig,max,num_pages_needed);
+            }
+            page * ret = NULL;
+            if(max_contig != NULL)
+            {
+			    //if for loop is done and we cannot find anything then pass in max_contig
+                ret = page_defrag(max_contig,max,num_pages_needed);
+            }
 		//	page * ret = NULL;
 			if(ret == NULL){
 				//swap from swap file
@@ -476,15 +480,15 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 	for(i=0;i<num_pages_needed;i++)
 	{
 		if(ptr == start){
-			start -> next_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));	
+			start -> next_page = find_page(start->memBlock + sysconf(_SC_PAGE_SIZE));	
 
 		}
 		else{
-			ptr ->prev_page = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i-1));
+			ptr ->prev_page = find_page(ptr->memBlock - sysconf(_SC_PAGE_SIZE));
 			//so we dont go out of bounds
 			if(i != num_pages_needed -1){
 
-				ptr ->next_page  = find_page(DRAM + OSLAND + sysconf(_SC_PAGE_SIZE)*(i+1));
+				ptr ->next_page  = find_page(ptr->memBlock + sysconf(_SC_PAGE_SIZE));
 			} 
 			else{
 				ptr ->next_page = NULL;
