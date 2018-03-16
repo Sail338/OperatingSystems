@@ -4,6 +4,7 @@
 
 void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 {
+	printf("SEGFAULTED\n");
    unprotectAll();
    page * real_page = find_page_virtual_addr(si->si_addr);
    page * fake_page = find_page(si->si_addr);
@@ -15,7 +16,6 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    void * curr = fake_page->memBlock;
    if(real_page->prev_page == NULL && real_page->next_page == NULL)
    {
-    printf("REAL PAGE: %p\n\nFAKE PAGE: %p\n",real_page,fake_page);
     swap(real_page,fake_page);
    }
    while(real_page != NULL)
@@ -52,7 +52,7 @@ void protectAll()
     {
 	    if(scheduler ->current != PT->pages[i]->owner)
         {
-			if(PT->pages[i]->owner != NULL)
+			if(PT->pages[i]->owner == NULL)
             {
 				continue;
 			}	
