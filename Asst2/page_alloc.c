@@ -16,9 +16,9 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    page * fake_page = find_page(si->si_addr);
    if(real_page == NULL || fake_page == NULL)
    {
-	printf("Invalid Acess, Segfault!");
-	exit(1);
-    return;
+	    printf("Invalid Acess, Segfault!");
+	    exit(1);
+        return;
    }
    int i;
    void * curr = fake_page->memBlock;
@@ -270,8 +270,11 @@ void *mymalloc(size_t numRequested)
 		//grab the current context
 		
 		void* to_ret =  single_page_alloc(numRequested,numPages);
-		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
-		return to_ret;
+        if(to_ret != NULL)
+        {
+		    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+		    return to_ret;
+        }
 	}
     else
     {
@@ -345,7 +348,7 @@ void moveToSwap(page * victim)
     //3. Swap the pages
     //4. Actually Write the victim to Swap
     int swap_start_index = NUM_PAGES;
-    while(PT->pages[swap_start_index]->is_initialized)
+    while(PT->pages[swap_start_index]->is_initialized && swap_start_index < NUM_PAGES + NUM_PAGES_S)
     {
         swap_start_index += 1;
     }
@@ -388,11 +391,14 @@ void * single_page_alloc(int numRequested,int numOfPages)
 	}
 		//give a new page if we have to
 		void * second_try = giveNewPage();
+        void * to_ret = NULL;
 		//with the new page make call to page_alloc this SHOULD RETURN TRUE 
-		void *to_ret = page_alloc(second_try,numRequested,false);
-		if(to_ret != NULL){
-			return to_ret;
-		}
+        if(second_try != NULL)
+        {
+		    to_ret = page_alloc(second_try,numRequested,false);
+        }
+
+    return to_ret;
 
 }
 /**
@@ -1097,8 +1103,9 @@ void  page_table_string(int start, int end)
 void createSwap()
 {
 	//if we have not inited the Swapfile , init it
-	if(PT->swapfd != -1)
+	if(PT->swapfd == -1)
     {
+        printf("Swap File Created!\n");
 		int fd = open("Swapfile",O_CREAT|O_RDWR,0777);
 		PT->swapfd = fd;
 		lseek(fd,16777215,SEEK_SET);
