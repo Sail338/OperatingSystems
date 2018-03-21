@@ -150,7 +150,7 @@ void page_table_initialize(int pageSize, int numOfPages)
         {
             PT->pages[i]->memBlock = ptr;
             PT->pages[i]->virtual_addr = ptr;
-            PT->pages[i]->fileIndex = 1;
+            PT->pages[i]->fileIndex = -1;
         }
         else
         {
@@ -235,11 +235,12 @@ void* osmalloc(int bytes)
 			DRAM_initialize();
 			DRAM_INIT =1;
 	}
-	void  *x =malloc(bytes);	
-	/*if(x >= (void *)(DRAM + OSLAND))
+	void  *x = page_alloc(NULL,bytes,true);	
+	if(x >= (void *)(DRAM + OSLAND))
 	{
-		return NULL;
-	}*/
+        printf("OSMALLOC Failed, Exiting Program\n");
+        exit(1);
+	}
 	return x;
 }
 
@@ -265,17 +266,19 @@ void *mymalloc(size_t numRequested)
 		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 		return to_ret;
 	}
-
-    void * retMult = multi_page_alloc(numRequested,numPages);
-    //if multi page alloc returns null, then move pages around and if that fails, swap with disk
-    if(retMult != NULL)
+    else
     {
-        __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
-        return retMult;
+        void * retMult = multi_page_alloc(numRequested,numPages);
+        //if multi page alloc returns null, then move pages around and if that fails, swap with disk
+        if(retMult != NULL)
+        {
+            __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+            return retMult;
+        }
     }
     //swap file
     createSwap();
-    void * retSwap = evict(int numRequested);
+    void * retSwap = evict(numRequested);
     if(retSwap != NULL)
     {
         __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
@@ -285,30 +288,37 @@ void *mymalloc(size_t numRequested)
 }
 
 //random numbet between range min and max
-int random(int min, int max)
+int randNum(int min, int max)
 {
-    return rand()%(max-min)+ming;
+    return rand()%(max-min)+min;
 }
 
 /**
  *Evict pages from DRAM and recall mymalloc with the page table stuff now free
  *@param numRequested: bytes requested by user!
 **/
-void evict(int numRequested)
+void * evict(int numRequested)
 {
     //number of pages to swap should be ceiling of pages needed, MINUS the number of pages currently free in ram
-    int numPagsSwap = ceil_bytes(numRequested) - PT->free_pages_in_RAM;
+    int numPagesSwap = ceil_bytes(numRequested) - PT->free_pages_in_RAM;
     //Not enough free pages in SWAP to accomodate numRequested
-    if(PT->free_pages_in_swap < numPages)
+    if(PT->free_pages_in_swap < numPagesSwap)
     {
         return NULL;
     }
-    int victimStart = random(0,((int)NUM_PAGES*(3/4)));
+    int victimStart = ranNum(0,((int)NUM_PAGES*(3/4)));
+    while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
+    {
+        victimStart = ranNum(0,((int)NUM_PAGES*(3/4)));
+    }
     while(numPagesSwap != 0)
     {
          moveToSwap(PT->pages[victimStart]);
-         victimStart += 1;
-         victimStart = victimStart % NUM_PAGES;
+         while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
+         {
+            victimStart +=  1;
+            victimStart = victimStart % NUM_PAGES;
+         }
          PT->free_pages_in_RAM+=1;
          PT->free_pages_in_swap-=1;
          numPagesSwap-=1;
@@ -1060,7 +1070,7 @@ void createSwap()
 }
 			
 
-}
+
 
 
 

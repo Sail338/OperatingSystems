@@ -1,6 +1,8 @@
 #ifndef PAGES_H
 #define PAGES_H
 #include "thread_util.h"
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <malloc.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -106,11 +108,13 @@ static void page_fault_handler(int,siginfo_t *, void*);
 
 void unprotectAll();
 
-void evict(int);
+void * evict(int);
 
 void protectAll();
 
-int random(int,int);
+int randNum(int,int);
+
+void createSwap();
 
 void moveToSwap(page *);
 
