@@ -26,18 +26,20 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    {
     swap(real_page,fake_page);
    }
-   while(real_page != NULL)
+   else
    {
-    real_page = real_page->prev_page;
-    curr -= sysconf(_SC_PAGE_SIZE);
-   }
-   while(real_page != NULL)
-   {
-        printf("Multi-Page Swap!\n");
+    while(real_page != NULL)
+    {
+        real_page = real_page->prev_page;
+        curr -= sysconf(_SC_PAGE_SIZE);
+    }
+    while(real_page != NULL)
+    {
         page * swapped = find_page(curr);
         swap(real_page,swapped);
         real_page = real_page->next_page;
         curr += sysconf(_SC_PAGE_SIZE);
+    }
    }
    //protect all the pages
    protectAll();
@@ -78,7 +80,7 @@ void protectAll()
 page * find_page_virtual_addr(void * target)
 {
     int i;
-    for(i = 0; i < NUM_PAGES; i++)
+    for(i = 0; i < NUM_PAGES+NUM_PAGES_S; i++)
     {
         if(PT->pages[i]->owner == scheduler->current 
                 && (char*)target >= PT->pages[i]->virtual_addr
@@ -181,6 +183,11 @@ int getKey(void * virtualAddr)
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
     int numOfPages = (DRAM_SIZE - OSLAND) / pageSize;
+    if(virtualAddr == NULL)
+    {
+        i = NUM_PAGES;
+        numOfPages = NUM_PAGES+NUM_PAGES_S;
+    }
     while(i < numOfPages){
         if (ptr == virtualAddr)
 		{
@@ -306,10 +313,12 @@ void * evict(int numRequested)
     {
         return NULL;
     }
-    int victimStart = ranNum(0,((int)NUM_PAGES*(3/4)));
+    //COMMENTED IT OUT FOR TESTING!
+    //int victimStart = randNum(0,((int)NUM_PAGES*(3/4)));
+    int victimStart = 0;
     while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
     {
-        victimStart = ranNum(0,((int)NUM_PAGES*(3/4)));
+        victimStart = randNum(0,((int)NUM_PAGES*(3/4)));
     }
     while(numPagesSwap != 0)
     {
@@ -342,12 +351,12 @@ void moveToSwap(page * victim)
     }
     page * swapPage = PT->pages[swap_start_index];
     swap(swapPage,victim);
-    swapPage->virtual_addr = victim->virtual_addr;
-    victim->fileIndex = swapPage->fileIndex;
-    swapPage->is_initialized = true;
-    swapPage->fileIndex = -1;
+    //swapPage->virtual_addr = victim->virtual_addr;
+    //victim->fileIndex = swapPage->fileIndex;
+    //swapPage->is_initialized = true;
+    //swapPage->fileIndex = -1;
     lseek(PT->swapfd,victim->fileIndex,SEEK_SET);
-    write(PT->swapfd,victim->memBlock,4096);
+    write(PT->swapfd,victim->memBlock,sysconf(_SC_PAGE_SIZE));
 }
 
 
@@ -961,11 +970,41 @@ bool segment_free(void * target)
 
 int swap(page * p1, page * p2)
 {
+    if(p1->fileIndex > -1 && p2->fileIndex > -1)
+    {
+        printf("Hello? Swapping two pages in Swap??????\n");
+        exit(1);
+    }
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
-    memcpy(temp,p1->memBlock,pageSize);
-    memcpy(p1->memBlock,p2->memBlock,pageSize);
-    memcpy(p2->memBlock,temp,pageSize);
+    char buffer[pageSize];
+    char * p1True = p1->memBlock;
+    char * p2True = p2->memBlock;
+    if(p1->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p1->fileIndex,SEEK_SET);
+        read(PT->swapfd,buffer,pageSize);
+        p1True = buffer;
+    }
+    else if(p2->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p2->fileIndex,SEEK_SET);
+        read(PT->swapfd,buffer,pageSize);
+        p2True = buffer;
+    }
+    memcpy(temp,p1True,pageSize);
+    memcpy(p1True,p2True,pageSize);
+    memcpy(p2True,temp,pageSize);
+    if(p1->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p1->fileIndex,SEEK_SET);
+        write(PT->swapfd,p1True,pageSize);
+    }
+    else if(p2->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p2->fileIndex,SEEK_SET);
+        write(PT->swapfd,p2True,pageSize);
+    }
     void * t = p1->memBlock;
     p1->memBlock = p2->memBlock;
     p2->memBlock = t;
