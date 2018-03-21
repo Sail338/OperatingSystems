@@ -34,6 +34,7 @@ typedef struct pageTable
     page ** pages;
     short freePages;
     struct sigaction sa;
+	int swapfd;
 }pageTable;
 
 pageTable * PT;

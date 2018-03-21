@@ -133,6 +133,7 @@ void page_table_initialize(int pageSize, int numOfPages)
     //allocate space for the pageTable struct 	
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
    	PT->freePages = numOfPages;
+	PT->swapfd = -1;
     PT->pages = osmalloc(sizeof(page*)*numOfPages);
     PT->sa.sa_flags = SA_SIGINFO;
     sigemptyset(&PT->sa.sa_mask);
@@ -965,6 +966,25 @@ void  page_table_string(int start, int end)
     }
 }
 
+/**
+ *Creates the SWAP File
+ *
+ * */
+
+void createSwap()
+{
+	//if we have not inited the Swapfile , init it
+	if(PT->swapfd != -1){
+		int fd = open("Swapfile",O_CREAT|O_RDWR,0777);
+		PT->swapfd = fd;
+		lseek(fd,16777216,SEEK_SET);
+		write(fd,"\0",0);
+	}
+	
+}
+			
+
+}
 
 
 
