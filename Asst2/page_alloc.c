@@ -263,7 +263,12 @@ void *mymalloc(size_t numRequested)
 	{
 		page_table_initialize(pageSize, numPages);
 	}
-
+    //Bigger than DRAM
+    if(ceil_bytes(numRequested) > 1792)
+    {
+        printf("Malloc Largers than User Space\n");
+        return NULL;
+    }
 	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
@@ -321,7 +326,7 @@ void * evict(int numRequested)
     int victimStart = 0;
     while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
     {
-        victimStart = randNum(0,((int)NUM_PAGES*(3/4)));
+        victimStart = randNum(0,((int)(NUM_PAGES*(3.0/4.0))));
     }
     while(numPagesSwap != 0)
     {
@@ -353,6 +358,15 @@ void moveToSwap(page * victim)
         swap_start_index += 1;
     }
     page * swapPage = PT->pages[swap_start_index];
+    char buffer[4096];
+    int curr = 0;
+    while(curr < 4096)
+    {
+        buffer[curr] = '0';
+        curr+=1;
+    }
+    lseek(PT->swapfd,swapPage->fileIndex,SEEK_SET);
+    write(PT->swapfd,buffer,sysconf(_SC_PAGE_SIZE));
     swap(swapPage,victim);
     //swapPage->virtual_addr = victim->virtual_addr;
     //victim->fileIndex = swapPage->fileIndex;
@@ -1110,7 +1124,7 @@ void createSwap()
 		PT->swapfd = fd;
 		lseek(fd,16777215,SEEK_SET);
 		write(fd,"\0",1);
-        PT->free_pages_in_RAM = NUM_PAGES_S;
+        PT->free_pages_in_swap = NUM_PAGES_S;
 	}
 	
 }

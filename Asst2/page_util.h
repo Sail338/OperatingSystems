@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 //#define malloc(x) mymalloc (x, __FILE__, __LINE__)
 #define free(x) osfree(x, __FILE__, __LINE__)
-#define OSLAND 503808
+#define OSLAND 1048576
 #define DRAM_SIZE 8388608
 #define SWAP_SIZE 16777215
 #define NUM_PAGES_S SWAP_SIZE/sysconf(_SC_PAGE_SIZE)

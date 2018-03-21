@@ -11,12 +11,8 @@ void func()
 
 int main()
 {
-    char * x = mymalloc(7884800-8);
-    char buffer[300];
-    char * y = buffer;
-    memcpy(y,"Hey",4);
-    printf("%s\n",y);
+    char * x = mymalloc(7340032-8);
     pthread_t t;
-    //pthread_create(&t,NULL,(void*)func,NULL);
-    //pthread_join(t,NULL);
+    pthread_create(&t,NULL,(void*)func,NULL);
+    pthread_join(t,NULL);
 }
