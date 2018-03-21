@@ -14,6 +14,8 @@
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 503808
 #define DRAM_SIZE 8388608
+#define SWAP_SIZE 16777215
+#define NUM_PAGES_S SWAP_SIZE/sysconf(_SC_PAGE_SIZE)
 #define NUM_PAGES  (DRAM_SIZE-OSLAND)/sysconf(_SC_PAGE_SIZE)
 typedef struct page
 {
@@ -27,12 +29,14 @@ typedef struct page
 	bool is_initialized;
 	char * memBlock;
     char * virtual_addr;
+    int fileIndex;
 } page;
 
 typedef struct pageTable
 {
     page ** pages;
-    short freePages;
+    short free_pages_in_RAM;
+    short free_pages_in_swap;
     struct sigaction sa;
 	int swapfd;
 }pageTable;
@@ -102,5 +106,12 @@ static void page_fault_handler(int,siginfo_t *, void*);
 
 void unprotectAll();
 
+void evict(int);
+
 void protectAll();
+
+int random(int,int);
+
+void moveToSwap(page *);
+
 #endif

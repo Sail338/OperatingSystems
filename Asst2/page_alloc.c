@@ -132,21 +132,33 @@ void page_table_initialize(int pageSize, int numOfPages)
 	//initialize page table and then scheduler
     //allocate space for the pageTable struct 	
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
-   	PT->freePages = numOfPages;
+   	PT->free_pages_in_RAM = numOfPages;
 	PT->swapfd = -1;
-    PT->pages = osmalloc(sizeof(page*)*numOfPages);
+    PT->pages = osmalloc(sizeof(page*)*(numOfPages+NUM_PAGES_S));
     PT->sa.sa_flags = SA_SIGINFO;
     sigemptyset(&PT->sa.sa_mask);
     PT->sa.sa_sigaction = page_fault_handler;
     sigaction(SIGSEGV,&PT->sa,NULL);
     void * ptr = (void*)(DRAM + OSLAND);
 	int i;
+    int currFileIndex = 0;
 	//initializing the pages in page table with default values
-   	for(i = 0; i < numOfPages; i++)
+   	for(i = 0; i < numOfPages+NUM_PAGES_S; i++)
 	{
     	PT->pages[i] = osmalloc(sizeof(page));
-    	PT->pages[i]->memBlock = ptr;
-        PT->pages[i]->virtual_addr = ptr;
+        if(i < numOfPages)
+        {
+            PT->pages[i]->memBlock = ptr;
+            PT->pages[i]->virtual_addr = ptr;
+            PT->pages[i]->fileIndex = 1;
+        }
+        else
+        {
+            PT->pages[i]->virtual_addr = NULL;
+            PT->pages[i]->memBlock = NULL;
+            PT->pages[i]->fileIndex = currFileIndex;
+            currFileIndex += sysconf(_SC_PAGE_SIZE);
+        }
         PT->pages[i]->next_page = NULL;
         PT->pages[i]->prev_page = NULL;
 		PT->pages[i]->owner = NULL;
@@ -254,19 +266,81 @@ void *mymalloc(size_t numRequested)
 		return to_ret;
 	}
 
-	//case 2 MORE THAN A PAGE
-	else
-	{
-			
-		void* to_ret = multi_page_alloc	(numRequested,numPages);	
-		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
-		return to_ret;
-		//if multi page alloc returns null, then move pages around and if that fails, swap with disk
-	}
-		//swap files
-	
+    void * retMult = multi_page_alloc(numRequested,numPages);
+    //if multi page alloc returns null, then move pages around and if that fails, swap with disk
+    if(retMult != NULL)
+    {
+        __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+        return retMult;
+    }
+    //swap file
+    createSwap();
+    void * retSwap = evict(int numRequested);
+    if(retSwap != NULL)
+    {
+        __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+        return retSwap;
+    }
 	return NULL;
 }
+
+//random numbet between range min and max
+int random(int min, int max)
+{
+    return rand()%(max-min)+ming;
+}
+
+/**
+ *Evict pages from DRAM and recall mymalloc with the page table stuff now free
+ *@param numRequested: bytes requested by user!
+**/
+void evict(int numRequested)
+{
+    //number of pages to swap should be ceiling of pages needed, MINUS the number of pages currently free in ram
+    int numPagsSwap = ceil_bytes(numRequested) - PT->free_pages_in_RAM;
+    //Not enough free pages in SWAP to accomodate numRequested
+    if(PT->free_pages_in_swap < numPages)
+    {
+        return NULL;
+    }
+    int victimStart = random(0,((int)NUM_PAGES*(3/4)));
+    while(numPagesSwap != 0)
+    {
+         moveToSwap(PT->pages[victimStart]);
+         victimStart += 1;
+         victimStart = victimStart % NUM_PAGES;
+         PT->free_pages_in_RAM+=1;
+         PT->free_pages_in_swap-=1;
+         numPagesSwap-=1;
+    }
+    mymalloc(numRequested);
+}
+/**
+ *Moves the specified victim to th first free page in swap
+ *@param the page struct that is our victim
+ */
+void moveToSwap(page * victim)
+{
+    //1. Find free space in Swap
+    //2. Set data for both pages
+    //3. Swap the pages
+    //4. Actually Write the victim to Swap
+    int swap_start_index = NUM_PAGES;
+    while(PT->pages[swap_start_index]->is_initialized)
+    {
+        swap_start_index += 1;
+    }
+    page * swapPage = PT->pages[swap_start_index];
+    swap(swapPage,victim);
+    swapPage->virtual_addr = victim->virtual_addr;
+    victim->fileIndex = swapPage->fileIndex;
+    swapPage->is_initialized = true;
+    swapPage->fileIndex = -1;
+    lseek(PT->swapfd,victim->fileIndex,SEEK_SET);
+    write(PT->swapfd,victim->memBlock,4096);
+}
+
+
 /**
  *@param numRequested : bytes requested
  @param numPages numOfPages total in the pagetable
@@ -316,7 +390,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 		 //calculate number of pages needed
 		int num_pages_needed = ceil_bytes(numRequested); 
 		//check if there are enough free pages, if not then grab from swap
-		if(PT->freePages >= num_pages_needed){
+		if(PT->free_pages_in_RAM >= num_pages_needed){
 		//check if there are n contgious pages in DRAM 	
 			int i;
 			int contig = 0;
@@ -336,7 +410,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 				}
 				if(contig == num_pages_needed){
 					void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
-					PT->freePages -= num_pages_needed;
+					PT->free_pages_in_RAM -= num_pages_needed;
 					return page_alloc(to_alloc,numRequested,false);
 				}
 				else{
@@ -365,7 +439,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			}
 			else{
 					void * to_alloc = multi_page_prep(ret,num_pages_needed,numRequested);;
-					PT->freePages -= num_pages_needed;
+					PT->free_pages_in_RAM -= num_pages_needed;
 					return page_alloc(to_alloc,numRequested,false);
 			}
 			
@@ -714,7 +788,7 @@ page *giveNewPage()
 				PT->pages[i]->owner  = scheduler -> current;
 				//set virtualadess = memBlock, this is the VA is what user acess, so basically VA == Inital adress
 				PT->pages[i]->virtual_addr = PT->pages[i]->memBlock;
-                PT->freePages--;
+                PT->free_pages_in_RAM--;
 				return PT->pages[i];
 
 			}
@@ -911,7 +985,7 @@ void page_clean(page *start)
 		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
 				start->is_initialized = false;
 				start->owner = NULL;
-                PT->freePages += 1;
+                PT->free_pages_in_RAM += 1;
 		}
 		else{
 		while(start  != NULL){
@@ -927,7 +1001,7 @@ void page_clean(page *start)
 				start ->next_page = NULL;
 				start -> prev_page = NULL;
 				start = temp;
-				PT->freePages +=1;
+				PT->free_pages_in_RAM +=1;
 			
 			}
 			else{
@@ -974,11 +1048,13 @@ void  page_table_string(int start, int end)
 void createSwap()
 {
 	//if we have not inited the Swapfile , init it
-	if(PT->swapfd != -1){
+	if(PT->swapfd != -1)
+    {
 		int fd = open("Swapfile",O_CREAT|O_RDWR,0777);
 		PT->swapfd = fd;
-		lseek(fd,16777216,SEEK_SET);
-		write(fd,"\0",0);
+		lseek(fd,16777215,SEEK_SET);
+		write(fd,"\0",1);
+        PT->free_pages_in_RAM = NUM_PAGES_S;
 	}
 	
 }

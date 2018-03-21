@@ -11,6 +11,8 @@ int main()
         int fd = open("swapfile", O_RDWR|O_CREAT,0777);
 		lseek(fd,1000,SEEK_SET);	
 		perror("Error in Write");
+        write(fd,"0",1);
+        return 1;
 		char gb[1000];
 		strcpy(gb,"Hey");
 		*(int*)(gb+5) = 4;
