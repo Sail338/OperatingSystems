@@ -114,9 +114,10 @@ void protect_my_pages()
 	int num_pages = (DRAM_SIZE - OSLAND)/sysconf(_SC_PAGE_SIZE);
 	int i;
 	for(i=0;i<num_pages;i++){
-		if(PT->pages[i]->owner == scheduler ->current){
-				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
-			}
+		if(PT->pages[i]->owner == scheduler ->current || PT->pages[i]->owner == NULL)
+        {
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+		}
 
 	}	
 

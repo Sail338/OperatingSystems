@@ -20,6 +20,10 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 	    exit(1);
         return;
    }
+   if(fake_page->owner == NULL)
+   {
+     PT->free_pages_in_swap += 1;
+   }
    int i;
    void * curr = fake_page->memBlock;
    if(real_page->prev_page == NULL && real_page->next_page == NULL)
@@ -58,6 +62,21 @@ void unprotectAll()
 
 	}
 }
+
+void unprotectFree()
+{
+    int i;
+    for(i = 0; i < NUM_PAGES; i++)
+    {
+        if(PT->pages[i]->owner == NULL)
+        {
+            mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE);
+        }
+    }
+}
+
+
+
 /**
  *
  *
@@ -69,15 +88,19 @@ void protectAll()
     {
 	    if(scheduler ->current != PT->pages[i]->owner)
         {
-			if(PT->pages[i]->owner == NULL)
-            {
-				continue;
-			}	
-				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+            //mprotecting empty pages so that contexts that
+            //attempt to access it will go to the segfault
+            //handler
+			//if(PT->pages[i]->owner == NULL)
+            //{
+			//	continue;
+			//}	
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
 }
+
 
 
 page * find_page_virtual_addr(void * target)
@@ -116,6 +139,9 @@ int DRAM_initialize()
 void page_init(page * curr_page)
 
 {
+    //Because free pages are mprotected we want to unprotect all free pages
+    //So page init can initialize without segfault
+    unprotectFree();
 	int i = 0;
 	int capacity = curr_page -> capacity;
 	for (i=0; i < capacity; i++)
@@ -124,6 +150,7 @@ void page_init(page * curr_page)
 	}
 	*(int*)curr_page->memBlock = curr_page->capacity - 4;
 	curr_page -> is_initialized = true;
+    protectAll();
 }
 /**
  *Hash function to get the index in the pagetable given a pageadress
