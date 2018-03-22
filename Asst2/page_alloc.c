@@ -577,7 +577,10 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 				//if that page is free swap with the end and incremnt what we have by one
 				if(check_if_free ->is_initialized == false && check_if_free->owner != scheduler ->current){
 			 		end_page = find_page(end_page->memBlock + sysconf(_SC_PAGE_SIZE));
+		
 				 	swap(end_page,check_if_free);
+					//reset end back to its original location
+					end_page = check_if_free;
 				 	page_current +=1; 
 				}
 			//move curr equal to the next page to inspect
