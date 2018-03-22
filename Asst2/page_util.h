@@ -118,4 +118,5 @@ void createSwap();
 
 void moveToSwap(page *);
 
+bool cheack_possible_free(int);
 #endif

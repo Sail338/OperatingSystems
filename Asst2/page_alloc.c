@@ -28,7 +28,10 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    }
    else
    {
-    while(real_page != NULL)
+    //Before we were checking if real_page != NULL but this wouldnt work with the next
+    //while statement because if we make real_page NULL in this while statement
+    //it will be NULL in the next one and it will never stitch things together!
+    while(real_page->prev_page != NULL)
     {
         real_page = real_page->prev_page;
         curr -= sysconf(_SC_PAGE_SIZE);
@@ -177,25 +180,36 @@ void page_table_initialize(int pageSize, int numOfPages)
 	PAGE_TABLE_INIT =1;
 }
 
-int getKey(void * virtualAddr)
+int getKey(page * find)
 {
-    void * ptr = DRAM + OSLAND;
+    char * dram_ptr = DRAM+OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
     int numOfPages = (DRAM_SIZE - OSLAND) / pageSize;
-    if(virtualAddr == NULL)
+    if(find->fileIndex > -1)
     {
         i = NUM_PAGES;
         numOfPages = NUM_PAGES+NUM_PAGES_S;
     }
+    page * ptr = PT->pages[i];
     while(i < numOfPages){
-        if (ptr == virtualAddr)
+        if (find->fileIndex > -1)
 		{
-            return i;
+            if(find->fileIndex == ptr->fileIndex)
+            {
+                return i;
+            } 
 		}
-        
-        ptr += pageSize;
+        else
+        {
+            if(find->memBlock == dram_ptr)
+            {
+                return i;
+            }
+        }
+        dram_ptr += sysconf(_SC_PAGE_SIZE);
         i += 1;
+        ptr = PT->pages[i];
     }
     return -1;
 }
@@ -308,6 +322,32 @@ int randNum(int min, int max)
     return rand()%(max-min)+min;
 }
 
+//This function is used to check if it is possible to swap more free pages in
+//given how many pages the current context already owns in DRAM
+//If they are trying to allocate an amount that exceeds the number of
+//pages that they do not own and are not free then they are essentially
+//trying to allocate more pages than DRAM can give which should return NULL
+//Otherwise it would bet swapping Its own pages with SWAP which is undefined.
+//@param: numPagesSwap -> The amount of pages the current context wants us to free up
+bool check_possible_free(int numPagesSwap)
+{
+    int count = 0;
+    int i;
+    for(i = 0; i < NUM_PAGES; i++)
+    {
+        if(PT->pages[i]->owner == scheduler->current)
+        {
+            count +=1;
+        }
+    }
+    if(NUM_PAGES - count - PT->free_pages_in_RAM < numPagesSwap)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+
 /**
  *Evict pages from DRAM and recall mymalloc with the page table stuff now free
  *@param numRequested: bytes requested by user!
@@ -316,6 +356,15 @@ void * evict(int numRequested)
 {
     //number of pages to swap should be ceiling of pages needed, MINUS the number of pages currently free in ram
     int numPagesSwap = ceil_bytes(numRequested) - PT->free_pages_in_RAM;
+    
+    
+    //Need to make sure that NUM_PAGES -  number of pages in DRAM that belong to the current context
+    //is strictly LESS THAN the number of pages we need free because we should not be swapping
+    //any pages that already belong to the current thread
+    if(!check_possible_free(numPagesSwap))
+    {
+        return NULL;
+    }
     //Not enough free pages in SWAP to accomodate numRequested
     if(PT->free_pages_in_swap < numPagesSwap)
     {
@@ -326,7 +375,8 @@ void * evict(int numRequested)
     int victimStart = 0;
     while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
     {
-        victimStart = randNum(0,((int)(NUM_PAGES*(3.0/4.0))));
+        //victimStart = randNum(0,((int)(NUM_PAGES*(3.0/4.0))));
+        victimStart += 1;
     }
     while(numPagesSwap != 0)
     {
@@ -334,7 +384,9 @@ void * evict(int numRequested)
          while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
          {
             victimStart +=  1;
-            victimStart = victimStart % NUM_PAGES;
+            //WHAT THE FUCK!?! #DEFINE DONT WORK WITH MODULUS?
+            int bigboi = NUM_PAGES;
+            victimStart = victimStart % bigboi;
          }
          PT->free_pages_in_RAM+=1;
          PT->free_pages_in_swap-=1;
@@ -367,7 +419,9 @@ void moveToSwap(page * victim)
     }
     lseek(PT->swapfd,swapPage->fileIndex,SEEK_SET);
     write(PT->swapfd,buffer,sysconf(_SC_PAGE_SIZE));
+    unprotectAll();
     swap(swapPage,victim);
+    protectAll();
     //swapPage->virtual_addr = victim->virtual_addr;
     //victim->fileIndex = swapPage->fileIndex;
     //swapPage->is_initialized = true;
@@ -995,6 +1049,8 @@ int swap(page * p1, page * p2)
         printf("Hello? Swapping two pages in Swap??????\n");
         exit(1);
     }
+    int p1Info = getKey(p2);
+    int p2Info = getKey(p1);
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
     char buffer[pageSize];
@@ -1028,10 +1084,17 @@ int swap(page * p1, page * p2)
     void * t = p1->memBlock;
     p1->memBlock = p2->memBlock;
     p2->memBlock = t;
-    int p1Info = getKey(p1->memBlock);
-    int p2Info = getKey(p2->memBlock);
+    //int p1Info = getKey(p1);
+    //int p2Info = getKey(p2);
+    if(p2->fileIndex > -1 || p1->fileIndex > -1)
+    {
+        int tempIndex = p1->fileIndex;
+        p1->fileIndex = -1;
+        p2->fileIndex = tempIndex;
+    }
     if(p1Info == -1 || p2Info == -1)
     {
+        printf("p1: %d\tp2: %d\n",p1Info,p2Info);
         printf("Error in swap, virtual Address CANNOT be found!\n");
         return -1;
     }

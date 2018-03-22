@@ -21,13 +21,13 @@ int main()
             break;
         }
 	}
-    printf("Number of Free Pages: %d\n",PT->freePages);
+    printf("Number of Free Pages: %d\n",PT->free_pages_in_RAM);
 	for(i=0;i<j;i++){
 		if(i%2 == 0 && x[i] != NULL){
 			my_free(x[i]);
 		}
 	}
-    printf("Number of Free Pages: %d\n",PT->freePages);
+    printf("Number of Free Pages: %d\n",PT->free_pages_in_RAM);
     x[1][0] = 'h';
     x[1][4098] = 's';
 	pthread_t t;
