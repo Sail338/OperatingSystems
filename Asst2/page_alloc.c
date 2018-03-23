@@ -141,16 +141,19 @@ void page_init(page * curr_page)
 {
     //Because free pages are mprotected we want to unprotect all free pages
     //So page init can initialize without segfault
-    unprotectFree();
+    //unprotectFree();
 	int i = 0;
 	int capacity = curr_page -> capacity;
 	for (i=0; i < capacity; i++)
 	{
+
 		curr_page->memBlock[i] = '0';
 	}
+
 	*(int*)curr_page->memBlock = curr_page->capacity - 4;
 	curr_page -> is_initialized = true;
-    protectAll();
+    curr_page ->owner = scheduler->current;
+    //protectAll();
 }
 /**
  *Hash function to get the index in the pagetable given a pageadress
@@ -292,6 +295,18 @@ void* osmalloc(int bytes)
 	return x;
 }
 
+
+void * shalloc(size_t size)
+{
+    if(DRAM_INIT == 0)
+    {
+        DRAM_initialize();
+        DRAM_INIT = 1;
+    }
+}
+
+
+
 /**
  *@param numRequested : number of bytes the user wants
  *This is the actual malloc function the user calls
@@ -304,13 +319,17 @@ void *mymalloc(size_t numRequested)
 	{
 		page_table_initialize(pageSize, numPages);
 	}
+
+	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
+    unprotectFree();
     //Bigger than DRAM
     if(ceil_bytes(numRequested) > 1792)
     {
+        protectAll();
         printf("Malloc Largers than User Space\n");
+		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
         return NULL;
     }
-	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
@@ -318,7 +337,9 @@ void *mymalloc(size_t numRequested)
 		void* to_ret =  single_page_alloc(numRequested,numPages);
         if(to_ret != NULL)
         {
+            protectAll();
 		    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+            
 		    return to_ret;
         }
 	}
@@ -328,6 +349,7 @@ void *mymalloc(size_t numRequested)
         //if multi page alloc returns null, then move pages around and if that fails, swap with disk
         if(retMult != NULL)
         {
+            protectAll();
             __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
             return retMult;
         }
@@ -337,9 +359,12 @@ void *mymalloc(size_t numRequested)
     void * retSwap = evict(numRequested);
     if(retSwap != NULL)
     {
+        protectAll();
         __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
         return retSwap;
     }
+    protectAll();
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	return NULL;
 }
 
@@ -508,6 +533,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 
 {
 		 //calculate number of pages needed
+        
 		int num_pages_needed = ceil_bytes(numRequested); 
 		//check if there are enough free pages, if not then grab from swap
 		if(PT->free_pages_in_RAM >= num_pages_needed){
@@ -529,7 +555,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 				
 				}
 				if(contig == num_pages_needed){
-					void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
+					void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);
 					PT->free_pages_in_RAM -= num_pages_needed;
 					return page_alloc(to_alloc,numRequested,false);
 				}
@@ -642,7 +668,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 
 	}
 	//protect the pages again and set sysmode back to false
-    protectAll();
+    //protectAll();
 	return to_ret;
 
 }
@@ -677,6 +703,7 @@ int ceil_bytes(int numBytes)
 page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 {
 	//build the linked list and set metadata and set other pages is_init = true
+    //unprotectFree();
 	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
 	start -> space_remaining = start ->capacity;
 	start -> owner = scheduler -> current;
@@ -723,6 +750,7 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 
 			ptr = ptr->next_page;
 	}
+    //protectAll();
 	return start;
 
 }

@@ -121,4 +121,6 @@ void moveToSwap(page *);
 bool cheack_possible_free(int);
 
 void unprotectFree();
+
+void * shalloc(size_t);
 #endif
