@@ -16,9 +16,11 @@
 #define free(x) osfree(x, __FILE__, __LINE__)
 #define OSLAND 1048576
 #define DRAM_SIZE 8388608
+#define SHARED 4 * sysconf(_SC_PAGE_SIZE)
 #define SWAP_SIZE 16777215
 #define NUM_PAGES_S SWAP_SIZE/sysconf(_SC_PAGE_SIZE)
-#define NUM_PAGES  (DRAM_SIZE-OSLAND)/sysconf(_SC_PAGE_SIZE)
+#define NUM_PAGES  (DRAM_SIZE-OSLAND-SHARED)/sysconf(_SC_PAGE_SIZE)
+#define SHALLOC_PAGE NUM_PAGES + NUM_PAGES_S + 1
 typedef struct page
 {
 	//for contigous pages	
@@ -70,13 +72,13 @@ int ceil_bytes(int);
 
 page* multi_page_prep(page*,int,int);
 
-void * page_alloc(page * curr_page, int numRequested, bool os_mode);
+void * page_alloc(page * curr_page, int numRequested, int mode);
 
-size_t validateInput(page* curr_page, size_t numRequested, bool os_mode);
+size_t validateInput(page* curr_page, size_t numRequested, int mode);
 
-char* findSpace(page * curr_page, int numReq, bool os_mode);
+char* findSpace(page * curr_page, int numReq, int mode);
 //mergesi contiguous blocks of free memory into a single large block 
-void defrag(page * curr_page,bool);
+void defrag(page * curr_page,int);
 
 page* giveNewPage();
 
@@ -86,7 +88,7 @@ bool os_free(void *);
 
 bool my_free(void*);
 
-bool page_free (void* target, bool os_mode);
+bool page_free (void* target, int mode);
 
 bool segment_free(void * target);
 

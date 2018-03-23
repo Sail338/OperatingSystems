@@ -132,6 +132,7 @@ int DRAM_initialize()
         DRAM[i] = 0;
     }
 	*(int *)DRAM = OSLAND-4;
+    *(int*)(DRAM + DRAM_SIZE - SHARED) = SHARED-4; 
 	return 0;
 }
 
@@ -169,7 +170,7 @@ void page_table_initialize(int pageSize, int numOfPages)
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
    	PT->free_pages_in_RAM = numOfPages;
 	PT->swapfd = -1;
-    PT->pages = osmalloc(sizeof(page*)*(numOfPages+NUM_PAGES_S));
+    PT->pages = osmalloc(sizeof(page*)*(numOfPages+NUM_PAGES_S+1));
     PT->sa.sa_flags = SA_SIGINFO;
     sigemptyset(&PT->sa.sa_mask);
     PT->sa.sa_sigaction = page_fault_handler;
@@ -202,6 +203,14 @@ void page_table_initialize(int pageSize, int numOfPages)
         PT->pages[i]->is_initialized= false;
         ptr += pageSize;
    	 }
+    //Setting Shalloc Page
+    PT->pages[i] = osmalloc(sizeof(page));
+    PT->pages[i]->memBlock = DRAM + DRAM_SIZE - SHARED;
+    PT->pages[i]->capacity = pageSize * 4;
+    PT->pages[i]->space_remaining = pageSize*4;
+    PT->pages[i]->owner = NULL;
+    PT->pages[i]->prev_page = NULL;
+    PT->pages[i]->next_page = NULL;
 	//if scheduler has not be initalized call initScheduler()
     if(init == 0)
     {
@@ -255,7 +264,7 @@ void* find_page(void * target)
 	void * index = (void *)(DRAM + OSLAND);
 	int pageSize = sysconf(_SC_PAGE_SIZE);
     int pageNum = 0;
-    int numPages = (DRAM_SIZE - OSLAND) / pageSize;
+    int numPages = NUM_PAGES;
 	for (pageNum=0; pageNum<numPages; pageNum++)
 	{
 		if (target >= index && target < index + pageSize)
@@ -265,6 +274,8 @@ void* find_page(void * target)
 		}
 		index += pageSize;
 	}
+    if(target >= (void*)PT->pages[pageNum]->memBlock && target <= (void*)PT->pages[pageNum]->memBlock+SHARED)
+        return (void*)(PT->pages[pageNum]);
 	return NULL;
 }
 
@@ -303,6 +314,19 @@ void * shalloc(size_t size)
         DRAM_initialize();
         DRAM_INIT = 1;
     }
+    if(!PAGE_TABLE_INIT)
+    {
+        page_table_initialize(sysconf(_SC_PAGE_SIZE),NUM_PAGES);
+    }
+    __atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
+    void *x = page_alloc(PT->pages[SHALLOC_PAGE],size,2);
+    if(x == NULL)
+    {
+        printf("SHALLOC Failed, Exiting Program\n");
+        return NULL;
+    }
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+    return x;
 }
 
 
@@ -762,12 +786,16 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
  *
  * **/
 //should pass in page struct as param
-void* page_alloc (page * curr_page, int numRequested, bool os_mode)
+void* page_alloc (page * curr_page, int numRequested, int mode)
 {
-	numRequested = validateInput(curr_page, numRequested, os_mode);
+	numRequested = validateInput(curr_page, numRequested, mode);
+    if(numRequested == 0)
+    {
+        return NULL;
+    }
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
-	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
+	char* thatSoMeta = findSpace(curr_page, numRequested,mode);
 		//numRequested = validateInput(curr_page, numRequested);
 	//might want to include error message here
 	//THIS WILL ALSO GO IN WRAPPER
@@ -775,9 +803,9 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	//	return 0;
 	if (thatSoMeta == NULL)
 	{
-		defrag(curr_page,os_mode);
+		defrag(curr_page,mode);
 		printf("defragged\n");
-		thatSoMeta = findSpace(curr_page, numRequested, os_mode);
+		thatSoMeta = findSpace(curr_page, numRequested, mode);
 	}
 	if(thatSoMeta == NULL)
 	{
@@ -787,7 +815,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
-	if(usable_space != NULL && !os_mode){
+	if(usable_space != NULL && mode == 0){
 
 		curr_page ->space_remaining -= (numRequested + 4);
 	}
@@ -798,10 +826,14 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
  * also makes sure it is within bounds of OSland or USR LAND
  *
  * */
-size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
+size_t validateInput(page * curr_page, size_t numRequested,int mode)
 //PUT THIS THIS IN THE WRAPPER FUNCTION
 {
-	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
+	int maxSize = (mode == 0) ? curr_page -> capacity : OSLAND-4;
+    if(mode == 2)
+    {
+        maxSize = SHARED-4;
+    }
 	//must be within array bounds
 	if (numRequested <= 0 ||(int) numRequested > maxSize)
 		{
@@ -834,23 +866,33 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
  *@param os_mode an OSMODE flag which tells page_alloc to allocate in osland,curr_page should be null and is ignored if this flag is set to true
 */
 
-char* findSpace(page * curr_page, int numReq,bool os_mode)
+char* findSpace(page * curr_page, int numReq,int mode)
 {
 	//tracks how far down the array has been traveled
 	int consumed = 0;
 	//keeps trace of value contained in current metadata block
 	void * currMeta;
-	if(os_mode){
+	if(mode == 1)
+    {
 		currMeta = DRAM;
 
 		*(int *) currMeta = *(int *)DRAM;
-	}	
+	}
+    else if(mode == 2)
+    {
+        currMeta = DRAM + DRAM_SIZE - SHARED;
+        *(int *) currMeta = *(int*)(DRAM+DRAM_SIZE-SHARED);
+    }
 	else{
 		 currMeta = curr_page -> memBlock;
 		*(int *)currMeta = *(int *)curr_page -> memBlock;
 	}
 		//ternary operator to determine max size if OSLAND then it gets osland size, else the blocks capcity	
-		int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
+		int maxSize = (mode == 0) ? curr_page -> capacity : OSLAND;
+        if(mode == 2)
+        {
+            maxSize = SHARED;
+        }
 		//finds the next metadata block
 		while(consumed < maxSize)
 		{
@@ -882,10 +924,10 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
  @param os_mode: if os mode is true we currently do nothing
  *
  * */
-void defrag (page * curr_page,bool os_mode)
+void defrag (page * curr_page,int mode)
 {
 	//currently we dont defrag in os_mode
-	if(os_mode)
+	if(mode == 1 )
 	{
 		return;
 	}
@@ -1027,15 +1069,17 @@ bool my_free(void * target)
                     int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
 					metaFront -= 4;
 					*(int*)curr_page->memBlock = metaFront;
-                		}
-            		}
-						page_clean(start_page);	
-		    	}
+                }
+            }
+                if(start_page != PT->pages[SHALLOC_PAGE])
+				    page_clean(start_page);	
+		 }
 		else
 		{
 			//add 4 because space +meta is now free 
 			curr_page -> space_remaining += *(int *)(target-4)+4;
-			page_clean(curr_page);
+            if(curr_page != PT->pages[SHALLOC_PAGE])
+			     page_clean(curr_page);
 		}
 
 		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
@@ -1055,11 +1099,11 @@ bool my_free(void * target)
  os_free is for the OS ONLY and it works like system free expect with a bigger chunk
  *
  **/
-bool page_free(void * target, bool os_mode)
+bool page_free(void * target, int mode)
 {
 	//calc boundaries	
 	void* targetMeta = target - 4;
-	if (os_mode == true)
+	if (mode == 1)
 	{
 		if (targetMeta >= (void *)DRAM && targetMeta < (void *)(DRAM+OSLAND-5))
 		{
@@ -1067,6 +1111,15 @@ bool page_free(void * target, bool os_mode)
 				return true;
 		}
 	}
+    else if(mode == 2)
+    {
+        if(targetMeta >= (void*)DRAM + DRAM_SIZE - SHARED &&
+                targetMeta < (void*)(DRAM + DRAM_SIZE-5))
+        {
+            if(segment_free(targetMeta) == true)
+                return true;
+        }
+    }
 	else
 	{
 		if (segment_free(targetMeta) == true)
@@ -1172,18 +1225,23 @@ void page_clean(page *start)
 		page * temp = NULL;
 		page* old_start = start;
 		int distanceToMeta = *(int *)old_start->memBlock;
-		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
+		if(start->next_page == NULL && start->space_remaining ==  start->capacity)
+        {
 				start->is_initialized = false;
 				start->owner = NULL;
                 PT->free_pages_in_RAM += 1;
 		}
-		else{
-		while(start  != NULL){
-			if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
+		else
+        {
+		while(start  != NULL)
+        {
+			if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL)
+            {
 
 					return;
-				}
-			if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
+			}
+			if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining)
+            {
 			
 				temp = start->next_page;
 				start -> is_initialized = false;
@@ -1194,7 +1252,8 @@ void page_clean(page *start)
 				PT->free_pages_in_RAM +=1;
 			
 			}
-			else{
+			else
+            {
 					start = start->next_page;
 			}
 		}
