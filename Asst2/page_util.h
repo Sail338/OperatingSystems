@@ -20,7 +20,7 @@
 #define SWAP_SIZE 16777215
 #define NUM_PAGES_S SWAP_SIZE/sysconf(_SC_PAGE_SIZE)
 #define NUM_PAGES  (DRAM_SIZE-OSLAND-SHARED)/sysconf(_SC_PAGE_SIZE)
-#define SHALLOC_PAGE NUM_PAGES + NUM_PAGES_S + 1
+#define SHALLOC_PAGE NUM_PAGES + NUM_PAGES_S 
 typedef struct page
 {
 	//for contigous pages	

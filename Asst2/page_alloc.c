@@ -204,6 +204,8 @@ void page_table_initialize(int pageSize, int numOfPages)
         ptr += pageSize;
    	 }
     //Setting Shalloc Page
+//	printf("SHALLOC PAGE is  %ul",SHALLOC_PAGE);
+//	printf("%d",i);
     PT->pages[i] = osmalloc(sizeof(page));
     PT->pages[i]->memBlock = DRAM + DRAM_SIZE - SHARED;
     PT->pages[i]->capacity = pageSize * 4;
@@ -261,6 +263,14 @@ int getKey(page * find)
  * **/
 void* find_page(void * target)
 {
+	//check if in shalloc region
+	if(target >= (void*)(DRAM + DRAM_SIZE - SHARED) && target <= (void *)DRAM + DRAM_SIZE){
+	
+		//last page is ALWAYS THe shallloced page
+		//
+		return PT->pages[SHALLOC_PAGE];
+
+	}	
 	void * index = (void *)(DRAM + OSLAND);
 	int pageSize = sysconf(_SC_PAGE_SIZE);
     int pageNum = 0;
@@ -1041,7 +1051,7 @@ bool my_free(void * target)
 		//finds the page the target lies in
 		page * curr_page = find_page(target);
 		int numFreed = *(int *)(target -4);
-		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4))
+		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4) && curr_page!= PT->pages[SHALLOC_PAGE])
 		{
 			page * start_page = curr_page;
 			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE))-4);
