@@ -226,7 +226,7 @@ int getKey(page * find)
     char * dram_ptr = DRAM+OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
-    int numOfPages = (DRAM_SIZE - OSLAND) / pageSize;
+    int numOfPages = NUM_PAGES;
     if(find->fileIndex > -1)
     {
         i = NUM_PAGES;
@@ -525,6 +525,7 @@ void moveToSwap(page * victim)
 void * single_page_alloc(int numRequested,int numOfPages)
 {
 
+		
 		threadNode * curr = scheduler->current;
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
@@ -979,9 +980,9 @@ void defrag (page * curr_page,int mode)
  * */
 page *giveNewPage()
 {
-	int numOfPages = (DRAM_SIZE-OSLAND)/(sysconf(_SC_PAGE_SIZE));
+	int numOfPages = NUM_PAGES;
 	int i;
-	for(i=0;i<numOfPages;i++){
+	for(i=0;i<NUM_PAGES;i++){
 
 		if(PT->pages[i]->is_initialized == false){
 				PT->pages[i]->is_initialized = true;
