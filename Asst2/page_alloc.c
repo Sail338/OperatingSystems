@@ -8,8 +8,9 @@
  * */
 void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 {
-   printf("SEGFAULTED\n");
+   printf("Got SIGSEGV (most likely a page fault) at address: 0x%lx\n",(long) si->si_addr);
    //unprotect all the pages to swap
+   
    unprotectAll();
   
    page * real_page = find_page_virtual_addr(si->si_addr);
@@ -357,7 +358,7 @@ void *mymalloc(size_t numRequested)
 	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
     unprotectFree();
     //Bigger than DRAM
-    if(ceil_bytes(numRequested) > 1792)
+    if(ceil_bytes(numRequested) > NUM_PAGES)
     {
         protectAll();
         printf("Malloc Largers than User Space\n");
