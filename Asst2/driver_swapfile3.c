@@ -11,10 +11,10 @@ void func(int * x)
     while(iterations > 0)
     {
         srand(time(NULL));
-        int mallocSpace = rand();
+        int mallocSpace = rand()%1000;
         printf("THREAD %d | ITER %d:\tTRYING TO MALLOC SPACE: %d\n",*x,iterations,mallocSpace);
         printf("THREAD %d | ITER %d:\tFREE RAM: %d   FREE SWAP: %d\n",*x,iterations,PT->free_pages_in_RAM,PT->free_pages_in_swap);
-        char * z = mymalloc(mallocSpace);
+        char * z = malloc(mallocSpace);
         if(z == NULL)
         {
             printf("THREAD %d | ITER %d:\tMALLOC RETURNED A NULL POINTER\n",*x,iterations);
@@ -51,7 +51,7 @@ int main()
     //next = malloc(sizeof(int));
     masterState = 0;
     next = 0;
-    char * x = mymalloc(7340032-8);
+    char * x = malloc(sysconf(_SC_PAGE_SIZE)*NUM_PAGES-4);
     memcpy(x,"Welcome to the Jungle!",23);
     pthread_t * t = malloc(sizeof(my_pthread_t)*20);
     int j = 0;
