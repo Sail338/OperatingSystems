@@ -14,8 +14,6 @@
 #include <string.h>
 
 //#define malloc(x) mymalloc (x, __FILE__, __LINE__)
-#define free(x) osfree(x, __FILE__, __LINE__)
-#define OSLAND 503808
 #define LEVELS  5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
@@ -30,7 +28,7 @@
 #define pthread_mutex_destroy my_pthread_mutex_destroy
 #define pthread_t my_pthread_t
 #define pthread_mutex_t my_pthread_mutex_t
-#define MEM 64000
+#define MEM 20000
 
  typedef struct threadControlBlock 
 {

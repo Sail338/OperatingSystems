@@ -8,17 +8,22 @@
  * */
 void page_fault_handler(int sig, siginfo_t *si, void *unsued)
 {
-   printf("SEGFAULTED\n");
+   printf("Got SIGSEGV (most likely a page fault) at address: 0x%lx\n",(long) si->si_addr);
    //unprotect all the pages to swap
+   
    unprotectAll();
   
    page * real_page = find_page_virtual_addr(si->si_addr);
    page * fake_page = find_page(si->si_addr);
    if(real_page == NULL || fake_page == NULL)
    {
-	printf("Invalid Acess, Segfault!");
-	exit(1);
-    return;
+	    printf("Invalid Acess, Segfault!");
+	    exit(1);
+        return;
+   }
+   if(fake_page->owner == NULL)
+   {
+     PT->free_pages_in_swap += 1;
    }
    int i;
    void * curr = fake_page->memBlock;
@@ -26,18 +31,23 @@ void page_fault_handler(int sig, siginfo_t *si, void *unsued)
    {
     swap(real_page,fake_page);
    }
-   while(real_page != NULL)
+   else
    {
-    real_page = real_page->prev_page;
-    curr -= sysconf(_SC_PAGE_SIZE);
-   }
-   while(real_page != NULL)
-   {
-        printf("Multi-Page Swap!\n");
+    //Before we were checking if real_page != NULL but this wouldnt work with the next
+    //while statement because if we make real_page NULL in this while statement
+    //it will be NULL in the next one and it will never stitch things together!
+    while(real_page->prev_page != NULL)
+    {
+        real_page = real_page->prev_page;
+        curr -= sysconf(_SC_PAGE_SIZE);
+    }
+    while(real_page != NULL)
+    {
         page * swapped = find_page(curr);
         swap(real_page,swapped);
         real_page = real_page->next_page;
         curr += sysconf(_SC_PAGE_SIZE);
+    }
    }
    //protect all the pages
    protectAll();
@@ -53,6 +63,21 @@ void unprotectAll()
 
 	}
 }
+
+void unprotectFree()
+{
+    int i;
+    for(i = 0; i < NUM_PAGES; i++)
+    {
+        if(PT->pages[i]->owner == NULL)
+        {
+            mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE);
+        }
+    }
+}
+
+
+
 /**
  *
  *
@@ -64,21 +89,25 @@ void protectAll()
     {
 	    if(scheduler ->current != PT->pages[i]->owner)
         {
-			if(PT->pages[i]->owner == NULL)
-            {
-				continue;
-			}	
-				mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
+            //mprotecting empty pages so that contexts that
+            //attempt to access it will go to the segfault
+            //handler
+			//if(PT->pages[i]->owner == NULL)
+            //{
+			//	continue;
+			//}	
+			mprotect(PT->pages[i]->memBlock,sysconf(_SC_PAGE_SIZE),PROT_NONE);
 		}
 
 	}
 }
 
 
+
 page * find_page_virtual_addr(void * target)
 {
     int i;
-    for(i = 0; i < NUM_PAGES; i++)
+    for(i = 0; i < NUM_PAGES+NUM_PAGES_S; i++)
     {
         if(PT->pages[i]->owner == scheduler->current 
                 && (char*)target >= PT->pages[i]->virtual_addr
@@ -104,6 +133,7 @@ int DRAM_initialize()
         DRAM[i] = 0;
     }
 	*(int *)DRAM = OSLAND-4;
+    *(int*)(DRAM + DRAM_SIZE - SHARED) = SHARED-4; 
 	return 0;
 }
 
@@ -111,14 +141,21 @@ int DRAM_initialize()
 void page_init(page * curr_page)
 
 {
+    //Because free pages are mprotected we want to unprotect all free pages
+    //So page init can initialize without segfault
+    //unprotectFree();
 	int i = 0;
 	int capacity = curr_page -> capacity;
 	for (i=0; i < capacity; i++)
 	{
+
 		curr_page->memBlock[i] = '0';
 	}
+
 	*(int*)curr_page->memBlock = curr_page->capacity - 4;
 	curr_page -> is_initialized = true;
+    curr_page ->owner = scheduler->current;
+    //protectAll();
 }
 /**
  *Hash function to get the index in the pagetable given a pageadress
@@ -132,20 +169,33 @@ void page_table_initialize(int pageSize, int numOfPages)
 	//initialize page table and then scheduler
     //allocate space for the pageTable struct 	
 	PT = (pageTable *)osmalloc(sizeof(pageTable));
-   	PT->freePages = numOfPages;
-    PT->pages = osmalloc(sizeof(page*)*numOfPages);
+   	PT->free_pages_in_RAM = numOfPages;
+	PT->swapfd = -1;
+    PT->pages = osmalloc(sizeof(page*)*(numOfPages+NUM_PAGES_S+1));
     PT->sa.sa_flags = SA_SIGINFO;
     sigemptyset(&PT->sa.sa_mask);
     PT->sa.sa_sigaction = page_fault_handler;
     sigaction(SIGSEGV,&PT->sa,NULL);
     void * ptr = (void*)(DRAM + OSLAND);
 	int i;
+    int currFileIndex = 0;
 	//initializing the pages in page table with default values
-   	for(i = 0; i < numOfPages; i++)
+   	for(i = 0; i < numOfPages+NUM_PAGES_S; i++)
 	{
     	PT->pages[i] = osmalloc(sizeof(page));
-    	PT->pages[i]->memBlock = ptr;
-        PT->pages[i]->virtual_addr = ptr;
+        if(i < numOfPages)
+        {
+            PT->pages[i]->memBlock = ptr;
+            PT->pages[i]->virtual_addr = ptr;
+            PT->pages[i]->fileIndex = -1;
+        }
+        else
+        {
+            PT->pages[i]->virtual_addr = NULL;
+            PT->pages[i]->memBlock = NULL;
+            PT->pages[i]->fileIndex = currFileIndex;
+            currFileIndex += sysconf(_SC_PAGE_SIZE);
+        }
         PT->pages[i]->next_page = NULL;
         PT->pages[i]->prev_page = NULL;
 		PT->pages[i]->owner = NULL;
@@ -154,6 +204,16 @@ void page_table_initialize(int pageSize, int numOfPages)
         PT->pages[i]->is_initialized= false;
         ptr += pageSize;
    	 }
+    //Setting Shalloc Page
+//	printf("SHALLOC PAGE is  %ul",SHALLOC_PAGE);
+//	printf("%d",i);
+    PT->pages[i] = osmalloc(sizeof(page));
+    PT->pages[i]->memBlock = DRAM + DRAM_SIZE - SHARED;
+    PT->pages[i]->capacity = pageSize * 4;
+    PT->pages[i]->space_remaining = pageSize*4;
+    PT->pages[i]->owner = NULL;
+    PT->pages[i]->prev_page = NULL;
+    PT->pages[i]->next_page = NULL;
 	//if scheduler has not be initalized call initScheduler()
     if(init == 0)
     {
@@ -162,20 +222,36 @@ void page_table_initialize(int pageSize, int numOfPages)
 	PAGE_TABLE_INIT =1;
 }
 
-int getKey(void * virtualAddr)
+int getKey(page * find)
 {
-    void * ptr = DRAM + OSLAND;
+    char * dram_ptr = DRAM+OSLAND;
     int pageSize = sysconf(_SC_PAGE_SIZE);
     int i = 0;
-    int numOfPages = (DRAM_SIZE - OSLAND) / pageSize;
+    int numOfPages = NUM_PAGES;
+    if(find->fileIndex > -1)
+    {
+        i = NUM_PAGES;
+        numOfPages = NUM_PAGES+NUM_PAGES_S;
+    }
+    page * ptr = PT->pages[i];
     while(i < numOfPages){
-        if (ptr == virtualAddr)
+        if (find->fileIndex > -1)
 		{
-            return i;
+            if(find->fileIndex == ptr->fileIndex)
+            {
+                return i;
+            } 
 		}
-        
-        ptr += pageSize;
+        else
+        {
+            if(find->memBlock == dram_ptr)
+            {
+                return i;
+            }
+        }
+        dram_ptr += sysconf(_SC_PAGE_SIZE);
         i += 1;
+        ptr = PT->pages[i];
     }
     return -1;
 }
@@ -188,10 +264,18 @@ int getKey(void * virtualAddr)
  * **/
 void* find_page(void * target)
 {
+	//check if in shalloc region
+	if(target >= (void*)(DRAM + DRAM_SIZE - SHARED) && target <= (void *)DRAM + DRAM_SIZE){
+	
+		//last page is ALWAYS THe shallloced page
+		//
+		return PT->pages[SHALLOC_PAGE];
+
+	}	
 	void * index = (void *)(DRAM + OSLAND);
 	int pageSize = sysconf(_SC_PAGE_SIZE);
     int pageNum = 0;
-    int numPages = (DRAM_SIZE - OSLAND) / pageSize;
+    int numPages = NUM_PAGES;
 	for (pageNum=0; pageNum<numPages; pageNum++)
 	{
 		if (target >= index && target < index + pageSize)
@@ -201,6 +285,8 @@ void* find_page(void * target)
 		}
 		index += pageSize;
 	}
+    if(target >= (void*)PT->pages[pageNum]->memBlock && target <= (void*)PT->pages[pageNum]->memBlock+SHARED)
+        return (void*)(PT->pages[pageNum]);
 	return NULL;
 }
 
@@ -222,13 +308,39 @@ void* osmalloc(int bytes)
 			DRAM_initialize();
 			DRAM_INIT =1;
 	}
-	void  *x =malloc(bytes);	
-	/*if(x >= (void *)(DRAM + OSLAND))
+	void  *x = page_alloc(NULL,bytes,true);	
+	if(x >= (void *)(DRAM + OSLAND))
 	{
-		return NULL;
-	}*/
+        printf("OSMALLOC Failed, Exiting Program\n");
+        exit(1);
+	}
 	return x;
 }
+
+
+void * shalloc(size_t size)
+{
+    if(DRAM_INIT == 0)
+    {
+        DRAM_initialize();
+        DRAM_INIT = 1;
+    }
+    if(!PAGE_TABLE_INIT)
+    {
+        page_table_initialize(sysconf(_SC_PAGE_SIZE),NUM_PAGES);
+    }
+    __atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
+    void *x = page_alloc(PT->pages[SHALLOC_PAGE],size,2);
+    if(x == NULL)
+    {
+        printf("SHALLOC Failed, Exiting Program\n");
+        return NULL;
+    }
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+    return x;
+}
+
+
 
 /**
  *@param numRequested : number of bytes the user wants
@@ -237,35 +349,175 @@ void* osmalloc(int bytes)
 void *mymalloc(size_t numRequested)
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    int numPages = (DRAM_SIZE-OSLAND)/pageSize;
+    int numPages = NUM_PAGES;
 	if (!PAGE_TABLE_INIT)
 	{
 		page_table_initialize(pageSize, numPages);
 	}
 
 	__atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);	
+    unprotectFree();
+    //Bigger than DRAM
+    if(ceil_bytes(numRequested) > NUM_PAGES)
+    {
+        protectAll();
+        printf("Malloc Largers than User Space\n");
+		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+        return NULL;
+    }
 	//CASE 1 if the bytes allocated is less than the a page, check owned pages to see your page has enough space
 	if((int)numRequested <= (sysconf(_SC_PAGE_SIZE)-4)){
 		//grab the current context
 		
 		void* to_ret =  single_page_alloc(numRequested,numPages);
-		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
-		return to_ret;
+        if(to_ret != NULL)
+        {
+            protectAll();
+		    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+            
+		    return to_ret;
+        }
 	}
-
-	//case 2 MORE THAN A PAGE
-	else
-	{
-			
-		void* to_ret = multi_page_alloc	(numRequested,numPages);	
-		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
-		return to_ret;
-		//if multi page alloc returns null, then move pages around and if that fails, swap with disk
-	}
-		//swap files
-	
+    else
+    {
+        void * retMult = multi_page_alloc(numRequested,numPages);
+        //if multi page alloc returns null, then move pages around and if that fails, swap with disk
+        if(retMult != NULL)
+        {
+            protectAll();
+            __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+            return retMult;
+        }
+    }
+    //swap file
+    createSwap();
+    void * retSwap = evict(numRequested);
+    if(retSwap != NULL)
+    {
+        protectAll();
+        __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
+        return retSwap;
+    }
+    protectAll();
+    __atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
 	return NULL;
 }
+
+//random numbet between range min and max
+int randNum(int min, int max)
+{
+    return rand()%(max-min)+min;
+}
+
+//This function is used to check if it is possible to swap more free pages in
+//given how many pages the current context already owns in DRAM
+//If they are trying to allocate an amount that exceeds the number of
+//pages that they do not own and are not free then they are essentially
+//trying to allocate more pages than DRAM can give which should return NULL
+//Otherwise it would bet swapping Its own pages with SWAP which is undefined.
+//@param: numPagesSwap -> The amount of pages the current context wants us to free up
+bool check_possible_free(int numPagesSwap)
+{
+    int count = 0;
+    int i;
+    for(i = 0; i < NUM_PAGES; i++)
+    {
+        if(PT->pages[i]->owner == scheduler->current)
+        {
+            count +=1;
+        }
+    }
+    if(NUM_PAGES - count - PT->free_pages_in_RAM < numPagesSwap)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+
+/**
+ *Evict pages from DRAM and recall mymalloc with the page table stuff now free
+ *@param numRequested: bytes requested by user!
+**/
+void * evict(int numRequested)
+{
+    //number of pages to swap should be ceiling of pages needed, MINUS the number of pages currently free in ram
+    int numPagesSwap = ceil_bytes(numRequested) - PT->free_pages_in_RAM;
+    
+    
+    //Need to make sure that NUM_PAGES -  number of pages in DRAM that belong to the current context
+    //is strictly LESS THAN the number of pages we need free because we should not be swapping
+    //any pages that already belong to the current thread
+    if(!check_possible_free(numPagesSwap))
+    {
+        return NULL;
+    }
+    //Not enough free pages in SWAP to accomodate numRequested
+    if(PT->free_pages_in_swap < numPagesSwap)
+    {
+        return NULL;
+    }
+    //COMMENTED IT OUT FOR TESTING!
+    //int victimStart = randNum(0,((int)NUM_PAGES*(3/4)));
+    int victimStart = 0;
+    while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
+    {
+        //victimStart = randNum(0,((int)(NUM_PAGES*(3.0/4.0))));
+        victimStart += 1;
+    }
+    while(numPagesSwap != 0)
+    {
+         moveToSwap(PT->pages[victimStart]);
+         while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
+         {
+            victimStart +=  1;
+            //WHAT THE FUCK!?! #DEFINE DONT WORK WITH MODULUS?
+            int bigboi = NUM_PAGES;
+            victimStart = victimStart % bigboi;
+         }
+         PT->free_pages_in_RAM+=1;
+         PT->free_pages_in_swap-=1;
+         numPagesSwap-=1;
+    }
+    mymalloc(numRequested);
+}
+/**
+ *Moves the specified victim to th first free page in swap
+ *@param the page struct that is our victim
+ */
+void moveToSwap(page * victim)
+{
+    //1. Find free space in Swap
+    //2. Set data for both pages
+    //3. Swap the pages
+    //4. Actually Write the victim to Swap
+    int swap_start_index = NUM_PAGES;
+    while(PT->pages[swap_start_index]->is_initialized && swap_start_index < NUM_PAGES + NUM_PAGES_S)
+    {
+        swap_start_index += 1;
+    }
+    page * swapPage = PT->pages[swap_start_index];
+    char buffer[4096];
+    int curr = 0;
+    while(curr < 4096)
+    {
+        buffer[curr] = '0';
+        curr+=1;
+    }
+    lseek(PT->swapfd,swapPage->fileIndex,SEEK_SET);
+    write(PT->swapfd,buffer,sysconf(_SC_PAGE_SIZE));
+    unprotectAll();
+    swap(swapPage,victim);
+    protectAll();
+    //swapPage->virtual_addr = victim->virtual_addr;
+    //victim->fileIndex = swapPage->fileIndex;
+    //swapPage->is_initialized = true;
+    //swapPage->fileIndex = -1;
+    lseek(PT->swapfd,victim->fileIndex,SEEK_SET);
+    write(PT->swapfd,victim->memBlock,sysconf(_SC_PAGE_SIZE));
+}
+
+
 /**
  *@param numRequested : bytes requested
  @param numPages numOfPages total in the pagetable
@@ -274,6 +526,8 @@ void *mymalloc(size_t numRequested)
 void * single_page_alloc(int numRequested,int numOfPages)
 {
 
+		
+		numOfPages = NUM_PAGES;
 		threadNode * curr = scheduler->current;
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
@@ -294,11 +548,14 @@ void * single_page_alloc(int numRequested,int numOfPages)
 	}
 		//give a new page if we have to
 		void * second_try = giveNewPage();
+        void * to_ret = NULL;
 		//with the new page make call to page_alloc this SHOULD RETURN TRUE 
-		void *to_ret = page_alloc(second_try,numRequested,false);
-		if(to_ret != NULL){
-			return to_ret;
-		}
+        if(second_try != NULL)
+        {
+		    to_ret = page_alloc(second_try,numRequested,false);
+        }
+
+    return to_ret;
 
 }
 /**
@@ -313,9 +570,11 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 
 {
 		 //calculate number of pages needed
+		 
+        
 		int num_pages_needed = ceil_bytes(numRequested); 
 		//check if there are enough free pages, if not then grab from swap
-		if(PT->freePages >= num_pages_needed){
+		if(PT->free_pages_in_RAM >= num_pages_needed){
 		//check if there are n contgious pages in DRAM 	
 			int i;
 			int contig = 0;
@@ -323,7 +582,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			page *max_contig = NULL;
 			page *start_contig = NULL;
 			
-			for(i=0;i<numOfPages;i++){
+			for(i=0;i<NUM_PAGES;i++){
 		
 				page* pg = find_page(DRAM+OSLAND + sysconf(_SC_PAGE_SIZE) * i);			
 				if(pg ->is_initialized == false){
@@ -334,8 +593,8 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 				
 				}
 				if(contig == num_pages_needed){
-					void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);;
-					PT->freePages -= num_pages_needed;
+					void * to_alloc = multi_page_prep(start_contig,num_pages_needed,numRequested);
+					PT->free_pages_in_RAM -= num_pages_needed;
 					return page_alloc(to_alloc,numRequested,false);
 				}
 				else{
@@ -364,7 +623,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			}
 			else{
 					void * to_alloc = multi_page_prep(ret,num_pages_needed,numRequested);;
-					PT->freePages -= num_pages_needed;
+					PT->free_pages_in_RAM -= num_pages_needed;
 					return page_alloc(to_alloc,numRequested,false);
 			}
 			
@@ -409,7 +668,10 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 				//if that page is free swap with the end and incremnt what we have by one
 				if(check_if_free ->is_initialized == false && check_if_free->owner != scheduler ->current){
 			 		end_page = find_page(end_page->memBlock + sysconf(_SC_PAGE_SIZE));
+		
 				 	swap(end_page,check_if_free);
+					//reset end back to its original location
+					end_page = check_if_free;
 				 	page_current +=1; 
 				}
 			//move curr equal to the next page to inspect
@@ -444,7 +706,7 @@ page  *page_defrag(page *currentLargest,int sizeCurrentLargest,int numNeeded)
 
 	}
 	//protect the pages again and set sysmode back to false
-    protectAll();
+    //protectAll();
 	return to_ret;
 
 }
@@ -479,6 +741,7 @@ int ceil_bytes(int numBytes)
 page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 {
 	//build the linked list and set metadata and set other pages is_init = true
+    //unprotectFree();
 	start ->capacity = num_pages_needed * sysconf(_SC_PAGE_SIZE);
 	start -> space_remaining = start ->capacity;
 	start -> owner = scheduler -> current;
@@ -525,6 +788,7 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
 
 			ptr = ptr->next_page;
 	}
+    //protectAll();
 	return start;
 
 }
@@ -536,12 +800,16 @@ page *multi_page_prep(page *start,int num_pages_needed,int numRequested)
  *
  * **/
 //should pass in page struct as param
-void* page_alloc (page * curr_page, int numRequested, bool os_mode)
+void* page_alloc (page * curr_page, int numRequested, int mode)
 {
-	numRequested = validateInput(curr_page, numRequested, os_mode);
+	numRequested = validateInput(curr_page, numRequested, mode);
+    if(numRequested == 0)
+    {
+        return NULL;
+    }
 	//PUT THIS IN THE WRAPPER
 	//numRequested = validateInput(curr_page, numRequested);
-	char* thatSoMeta = findSpace(curr_page, numRequested,os_mode);
+	char* thatSoMeta = findSpace(curr_page, numRequested,mode);
 		//numRequested = validateInput(curr_page, numRequested);
 	//might want to include error message here
 	//THIS WILL ALSO GO IN WRAPPER
@@ -549,9 +817,9 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	//	return 0;
 	if (thatSoMeta == NULL)
 	{
-		defrag(curr_page,os_mode);
+		defrag(curr_page,mode);
 		printf("defragged\n");
-		thatSoMeta = findSpace(curr_page, numRequested, os_mode);
+		thatSoMeta = findSpace(curr_page, numRequested, mode);
 	}
 	if(thatSoMeta == NULL)
 	{
@@ -561,7 +829,7 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
 	
 	void* usable_space = mallocDetails(numRequested, thatSoMeta);
 	//printf("num allocated: %hu \n", *(short*)(test));
-	if(usable_space != NULL && !os_mode){
+	if(usable_space != NULL && mode == 0){
 
 		curr_page ->space_remaining -= (numRequested + 4);
 	}
@@ -572,10 +840,14 @@ void* page_alloc (page * curr_page, int numRequested, bool os_mode)
  * also makes sure it is within bounds of OSland or USR LAND
  *
  * */
-size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
+size_t validateInput(page * curr_page, size_t numRequested,int mode)
 //PUT THIS THIS IN THE WRAPPER FUNCTION
 {
-	int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND-4;
+	int maxSize = (mode == 0) ? curr_page -> capacity : OSLAND-4;
+    if(mode == 2)
+    {
+        maxSize = SHARED-4;
+    }
 	//must be within array bounds
 	if (numRequested <= 0 ||(int) numRequested > maxSize)
 		{
@@ -608,23 +880,33 @@ size_t validateInput(page * curr_page, size_t numRequested,bool os_mode)
  *@param os_mode an OSMODE flag which tells page_alloc to allocate in osland,curr_page should be null and is ignored if this flag is set to true
 */
 
-char* findSpace(page * curr_page, int numReq,bool os_mode)
+char* findSpace(page * curr_page, int numReq,int mode)
 {
 	//tracks how far down the array has been traveled
 	int consumed = 0;
 	//keeps trace of value contained in current metadata block
 	void * currMeta;
-	if(os_mode){
+	if(mode == 1)
+    {
 		currMeta = DRAM;
 
 		*(int *) currMeta = *(int *)DRAM;
-	}	
+	}
+    else if(mode == 2)
+    {
+        currMeta = DRAM + DRAM_SIZE - SHARED;
+        *(int *) currMeta = *(int*)(DRAM+DRAM_SIZE-SHARED);
+    }
 	else{
 		 currMeta = curr_page -> memBlock;
 		*(int *)currMeta = *(int *)curr_page -> memBlock;
 	}
 		//ternary operator to determine max size if OSLAND then it gets osland size, else the blocks capcity	
-		int maxSize = (os_mode == false) ? curr_page -> capacity : OSLAND;
+		int maxSize = (mode == 0) ? curr_page -> capacity : OSLAND;
+        if(mode == 2)
+        {
+            maxSize = SHARED;
+        }
 		//finds the next metadata block
 		while(consumed < maxSize)
 		{
@@ -656,10 +938,10 @@ char* findSpace(page * curr_page, int numReq,bool os_mode)
  @param os_mode: if os mode is true we currently do nothing
  *
  * */
-void defrag (page * curr_page,bool os_mode)
+void defrag (page * curr_page,int mode)
 {
 	//currently we dont defrag in os_mode
-	if(os_mode)
+	if(mode == 1 )
 	{
 		return;
 	}
@@ -701,9 +983,9 @@ void defrag (page * curr_page,bool os_mode)
  * */
 page *giveNewPage()
 {
-	int numOfPages = (DRAM_SIZE-OSLAND)/(sysconf(_SC_PAGE_SIZE));
+	int numOfPages = NUM_PAGES;
 	int i;
-	for(i=0;i<numOfPages;i++){
+	for(i=0;i<NUM_PAGES;i++){
 
 		if(PT->pages[i]->is_initialized == false){
 				PT->pages[i]->is_initialized = true;
@@ -713,7 +995,7 @@ page *giveNewPage()
 				PT->pages[i]->owner  = scheduler -> current;
 				//set virtualadess = memBlock, this is the VA is what user acess, so basically VA == Inital adress
 				PT->pages[i]->virtual_addr = PT->pages[i]->memBlock;
-                PT->freePages--;
+                PT->free_pages_in_RAM--;
 				return PT->pages[i];
 
 			}
@@ -773,7 +1055,7 @@ bool my_free(void * target)
 		//finds the page the target lies in
 		page * curr_page = find_page(target);
 		int numFreed = *(int *)(target -4);
-		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4))
+		if (numFreed > (sysconf(_SC_PAGE_SIZE)-4) && curr_page!= PT->pages[SHALLOC_PAGE])
 		{
 			page * start_page = curr_page;
 			int numPages = numFreed/((sysconf(_SC_PAGE_SIZE))-4);
@@ -801,15 +1083,17 @@ bool my_free(void * target)
                     int metaFront = (int)(start_page->memBlock+4+next - curr_page->memBlock);
 					metaFront -= 4;
 					*(int*)curr_page->memBlock = metaFront;
-                		}
-            		}
-						page_clean(start_page);	
-		    	}
+                }
+            }
+                if(start_page != PT->pages[SHALLOC_PAGE])
+				    page_clean(start_page);	
+		 }
 		else
 		{
 			//add 4 because space +meta is now free 
 			curr_page -> space_remaining += *(int *)(target-4)+4;
-			page_clean(curr_page);
+            if(curr_page != PT->pages[SHALLOC_PAGE])
+			     page_clean(curr_page);
 		}
 
 		__atomic_store_n(&(scheduler->SYS),false,__ATOMIC_SEQ_CST);
@@ -829,11 +1113,11 @@ bool my_free(void * target)
  os_free is for the OS ONLY and it works like system free expect with a bigger chunk
  *
  **/
-bool page_free(void * target, bool os_mode)
+bool page_free(void * target, int mode)
 {
 	//calc boundaries	
 	void* targetMeta = target - 4;
-	if (os_mode == true)
+	if (mode == 1)
 	{
 		if (targetMeta >= (void *)DRAM && targetMeta < (void *)(DRAM+OSLAND-5))
 		{
@@ -841,6 +1125,15 @@ bool page_free(void * target, bool os_mode)
 				return true;
 		}
 	}
+    else if(mode == 2)
+    {
+        if(targetMeta >= (void*)DRAM + DRAM_SIZE - SHARED &&
+                targetMeta < (void*)(DRAM + DRAM_SIZE-5))
+        {
+            if(segment_free(targetMeta) == true)
+                return true;
+        }
+    }
 	else
 	{
 		if (segment_free(targetMeta) == true)
@@ -876,18 +1169,57 @@ bool segment_free(void * target)
 
 int swap(page * p1, page * p2)
 {
+    if(p1->fileIndex > -1 && p2->fileIndex > -1)
+    {
+        printf("Hello? Swapping two pages in Swap??????\n");
+        exit(1);
+    }
+    int p1Info = getKey(p2);
+    int p2Info = getKey(p1);
     int pageSize = sysconf(_SC_PAGE_SIZE);
     char temp[pageSize];
-    memcpy(temp,p1->memBlock,pageSize);
-    memcpy(p1->memBlock,p2->memBlock,pageSize);
-    memcpy(p2->memBlock,temp,pageSize);
+    char buffer[pageSize];
+    char * p1True = p1->memBlock;
+    char * p2True = p2->memBlock;
+    if(p1->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p1->fileIndex,SEEK_SET);
+        read(PT->swapfd,buffer,pageSize);
+        p1True = buffer;
+    }
+    else if(p2->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p2->fileIndex,SEEK_SET);
+        read(PT->swapfd,buffer,pageSize);
+        p2True = buffer;
+    }
+    memcpy(temp,p1True,pageSize);
+    memcpy(p1True,p2True,pageSize);
+    memcpy(p2True,temp,pageSize);
+    if(p1->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p1->fileIndex,SEEK_SET);
+        write(PT->swapfd,p1True,pageSize);
+    }
+    else if(p2->fileIndex > -1)
+    {
+        lseek(PT->swapfd,p2->fileIndex,SEEK_SET);
+        write(PT->swapfd,p2True,pageSize);
+    }
     void * t = p1->memBlock;
     p1->memBlock = p2->memBlock;
     p2->memBlock = t;
-    int p1Info = getKey(p1->memBlock);
-    int p2Info = getKey(p2->memBlock);
+    //int p1Info = getKey(p1);
+    //int p2Info = getKey(p2);
+    if(p2->fileIndex > -1 || p1->fileIndex > -1)
+    {
+        int tempIndex = p1->fileIndex;
+        p1->fileIndex = -1;
+        p2->fileIndex = tempIndex;
+    }
     if(p1Info == -1 || p2Info == -1)
     {
+        printf("p1: %d\tp2: %d\n",p1Info,p2Info);
         printf("Error in swap, virtual Address CANNOT be found!\n");
         return -1;
     }
@@ -907,18 +1239,23 @@ void page_clean(page *start)
 		page * temp = NULL;
 		page* old_start = start;
 		int distanceToMeta = *(int *)old_start->memBlock;
-		if(start->next_page == NULL && start->space_remaining ==  start->capacity){
+		if(start->next_page == NULL && start->space_remaining ==  start->capacity)
+        {
 				start->is_initialized = false;
 				start->owner = NULL;
-                PT->freePages += 1;
+                PT->free_pages_in_RAM += 1;
 		}
-		else{
-		while(start  != NULL){
-			if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL){
+		else
+        {
+		while(start  != NULL)
+        {
+			if(old_start ->memBlock+4+distanceToMeta %2 != 0 && start ->next_page == NULL)
+            {
 
 					return;
-				}
-			if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining){
+			}
+			if(sysconf(_SC_PAGE_SIZE) == start -> space_remaining)
+            {
 			
 				temp = start->next_page;
 				start -> is_initialized = false;
@@ -926,10 +1263,11 @@ void page_clean(page *start)
 				start ->next_page = NULL;
 				start -> prev_page = NULL;
 				start = temp;
-				PT->freePages +=1;
+				PT->free_pages_in_RAM +=1;
 			
 			}
-			else{
+			else
+            {
 					start = start->next_page;
 			}
 		}
@@ -964,6 +1302,28 @@ void  page_table_string(int start, int end)
      printf("__________________________________________________________________\n");
     }
 }
+
+/**
+ *Creates the SWAP File
+ *
+ * */
+
+void createSwap()
+{
+	//if we have not inited the Swapfile , init it
+	if(PT->swapfd == -1)
+    {
+        printf("Swap File Created!\n");
+		int fd = open("Swapfile",O_CREAT|O_RDWR,0777);
+		PT->swapfd = fd;
+		lseek(fd,16777215,SEEK_SET);
+		write(fd,"\0",1);
+        PT->free_pages_in_swap = NUM_PAGES_S;
+	}
+	
+}
+			
+
 
 
 
