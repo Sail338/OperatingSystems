@@ -526,6 +526,7 @@ void * single_page_alloc(int numRequested,int numOfPages)
 {
 
 		
+		numOfPages = NUM_PAGES;
 		threadNode * curr = scheduler->current;
 		int i =0;
 		//iterate through owned pages and check if any of them having the appropriate space left
@@ -568,6 +569,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 
 {
 		 //calculate number of pages needed
+		 
         
 		int num_pages_needed = ceil_bytes(numRequested); 
 		//check if there are enough free pages, if not then grab from swap
