@@ -14,7 +14,6 @@
 #include <string.h>
 
 //#define malloc(x) mymalloc (x, __FILE__, __LINE__)
-#define free(x) osfree(x, __FILE__, __LINE__)
 #define LEVELS  5
 #define MULTIPLIER 2
 //Has to keep in mind how many levels in the Scheduler
