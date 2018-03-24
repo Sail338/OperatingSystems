@@ -348,7 +348,7 @@ void * shalloc(size_t size)
 void *mymalloc(size_t numRequested)
 {
     int pageSize = sysconf(_SC_PAGE_SIZE);
-    int numPages = (DRAM_SIZE-OSLAND)/pageSize;
+    int numPages = NUM_PAGES;
 	if (!PAGE_TABLE_INIT)
 	{
 		page_table_initialize(pageSize, numPages);
@@ -578,7 +578,7 @@ void * multi_page_alloc(int numRequested,int numOfPages)
 			page *max_contig = NULL;
 			page *start_contig = NULL;
 			
-			for(i=0;i<numOfPages;i++){
+			for(i=0;i<NUM_PAGES;i++){
 		
 				page* pg = find_page(DRAM+OSLAND + sysconf(_SC_PAGE_SIZE) * i);			
 				if(pg ->is_initialized == false){
