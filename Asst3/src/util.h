@@ -1,9 +1,13 @@
-nclude <stdlib.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <stdbool.h>
 int IS_FILE_TABLE_INIT;
+#define totalsize 16777216
+#define NONE 0
+#define FILE_NODE 1
+#define DIR_NODE 2
 typedef struct Inode
 {
 			//we only care aboyt the positon for the first inode in the chain
@@ -41,6 +45,7 @@ typedef struct FileTable
 {
 	Inode ** files;
 	int num_free_inodes;
+	int size;			
 			
-			
-}FileTable;G
+}FileTable;
+FileTable * FT;

@@ -54,7 +54,7 @@ void *sfs_init(struct fuse_conn_info *conn)
    	if(IS_FILE_TABLE_INIT ==0){
 		FT = malloc(sizeof(FileTable *));
 		FT ->num_free_inodes = totalsize/BLOCK_SIZE;
-
+		FT->size = BLOCK_SIZE;
 		FT ->files = malloc(FT->num_free_inodes*sizeof(FileTable *));
 		int i = 0;
 		for(i=0;i<FT->num_free_inodes;i++){
@@ -69,6 +69,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 				FT ->files[i]->is_init = false;
 				FT->files[i] -> path = NULL;
 		}
+
+		FT->files[0]->path = "/";
+		FT->files[0]->is_init = true;
+		FT->files[0] -> file_type = DIR_NODE;
 
 	}	
     log_conn(conn);
@@ -103,7 +107,9 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
-    
+   	//lookup the FILE TABLE FOR THE PATH;
+	   		
+	
     return retstat;
 }
 
