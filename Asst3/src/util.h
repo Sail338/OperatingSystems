@@ -31,7 +31,7 @@ typedef struct Inode
 			    struct Inode *  next;
 				struct Inode *prev;
 				bool is_init;
-				//int linkcount;
+				int linkcount;
 			
 }Inode;
 			
@@ -49,3 +49,6 @@ typedef struct FileTable
 			
 }FileTable;
 FileTable * FT;
+Inode * getFileFD(int);
+Inode * getFilePath(char*);
+int fileSize(Inode *);
