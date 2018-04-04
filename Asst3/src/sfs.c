@@ -28,13 +28,14 @@
 #endif
 
 #include "log.h"
-
+#include "util.h"
 
 ///////////////////////////////////////////////////////////
 //
 // Prototypes for all these functions, and the C-style comments,
 // come indirectly from /usr/include/fuse.h
 //
+
 
 /**
  * Initialize filesystem
@@ -50,11 +51,30 @@ void *sfs_init(struct fuse_conn_info *conn)
 {
     fprintf(stderr, "in bb-init\n");
     log_msg("\nsfs_init()\n");
-    
+   	if(IS_FILE_TABLE_INIT ==0){
+		FT = malloc(sizeof(FileTable *));
+		FT ->files = malloc(sizeof(FileTable **));
+		FT ->num_free_inodes = totalsize/4096;
+		int i = 0;
+		for(i=0;i<FT->num_free_inodes;i++){
+				FT->files[i] = malloc(sizeof(Inode*));
+				FT ->files[i] -> file_position = 0;
+				FT ->files[i]->fd = i*4096;
+				FT->files[i]->permissions = -1;
+				FT -> files[i] ->file_type = NONE;
+				FT -> files[i] -> spaceleft = 4096;
+				FT -> files[i] -> next = NULL;
+				FT ->files[i] ->prev = NULL;
+				FT ->files[i]->is_init = false;
+				FT->files[i] -> path = NULL;
+		}
+
+	}	
     log_conn(conn);
     log_fuse_context(fuse_get_context());
 
-    return SFS_DATA;
+    //return SFS_DATA;
+	return FT;
 }
 
 /**
