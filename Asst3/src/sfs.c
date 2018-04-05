@@ -44,13 +44,13 @@ Inode * getFileFD(int fd)
     }
     Inode * ptr = FT->files[0];
     int pos = 1;
-    while(ptr->fd != fd && ptr != NULL)
+    while(pos < FT->size && ptr->fd != fd)
     {
         ptr = FT->files[pos];
         pos += 1;
     }
     //Could not find referenced fd
-    if(ptr == NULL)
+    if(pos >= FT->size)
     {
         return NULL;
     }
@@ -62,58 +62,58 @@ Inode * getFileFD(int fd)
 
 Inode * getFilePath(char * path)
 {
-    if(IS_FILE_TABLE_INIT == 0)
-    {
-        //This method should not be called if the File Table is not created
-        return NULL;
-    }
+    
     if(path == NULL)
     {
-        printf("Null Path!\n");
+        log_msg("Nullerino");
         return NULL;
     }
     Inode * ptr = FT->files[0];
     int pos = 1;
-    while(strcmp(path,ptr->path) != 0 && ptr != NULL)
+    while(pos < FT->size && strcmp(path,ptr->path) != 0)
     {
-        ptr = FT->files[pos];
-        pos+=1;
-        while(FT->files[pos]->path == NULL)
+        if(FT->files[pos]->path == NULL)
         {
             pos+=1;
+            continue;
         }
+        ptr = FT->files[pos];
+        pos+=1;
     }
     //Could not find referenced path
-    if(ptr == NULL)
+    if(pos >= FT->size)
     {
         return NULL;
     }
     else
     {
+        log_msg("fount a duder to return\n");
+        sleep(10);
         return ptr;
     }
+
 }
 
 int fileSize(Inode * file)
 {
     int total = BLOCK_SIZE - file->spaceleft;
-    file = FT->files[file->fd/BLOCK_SIZE + 1];
+    file = file->next;
     while(file != NULL)
     {
         total += (BLOCK_SIZE - file->spaceleft);
-        file = FT->files[file->fd/BLOCK_SIZE + 1];
+        file = file->next;
     }
     return total;
 }
 
 int fileTotalSize(Inode * file)
 {
-    int total = BLOCK_SIZE;
-    file = FT->files[file->fd/BLOCK_SIZE + 1];
+    int total = 0;
+    file = FT->files[file->fd/BLOCK_SIZE];
     while(file != NULL)
     {
         total += BLOCK_SIZE;
-        file = FT->files[file->fd/BLOCK_SIZE + 1];
+        file = file->next;
     }
     return total;
 }
@@ -141,37 +141,36 @@ void *sfs_init(struct fuse_conn_info *conn)
 {
     fprintf(stderr, "in bb-init\n");
     log_msg("\nsfs_init()\n");
-   	if(IS_FILE_TABLE_INIT ==0){
-		FT = malloc(sizeof(FileTable *));
-		FT ->num_free_inodes = totalsize/BLOCK_SIZE;
-		FT->size = BLOCK_SIZE;
-		FT ->files = malloc(FT->num_free_inodes*sizeof(FileTable *));
-		int i = 0;
-		for(i=0;i<FT->num_free_inodes;i++){
-				FT->files[i] = malloc(sizeof(Inode*));
-				FT ->files[i] -> file_position = 0;
-				FT ->files[i]->fd = i*BLOCK_SIZE;
-				FT->files[i]->permissions = -1;
-				FT -> files[i] ->file_type = NONE;
-				FT -> files[i] -> spaceleft = BLOCK_SIZE;
-				FT -> files[i] -> next = NULL;
-				FT ->files[i] ->prev = NULL;
-				FT ->files[i]->is_init = false;
-				FT->files[i] -> path = NULL;
-                FT->files[i]->linkcount = 0;
-                FT->files[i]->timestamp = 0;
-		}
-
-		FT->files[0]->path = "/";
+	FT = malloc(sizeof(FileTable *));
+	FT ->num_free_inodes = totalsize/BLOCK_SIZE;
+	FT->size = totalsize/BLOCK_SIZE;
+	FT ->files = malloc(FT->num_free_inodes*sizeof(FileTable *));
+	int i = 0;
+	for(i=0;i<FT->num_free_inodes;i++)
+    {
+		FT->files[i] = malloc(sizeof(Inode));
+		FT ->files[i] -> file_position = 0;
+		FT ->files[i]->fd = i*BLOCK_SIZE;
+		FT->files[i]->permissions = -1;
+		FT -> files[i] ->file_type = NONE;
+		FT -> files[i] -> spaceleft = BLOCK_SIZE;
+		FT -> files[i] -> next = NULL;
+		FT ->files[i] ->prev = NULL;
+		FT ->files[i]->is_init = false;
+		FT->files[i] -> path = NULL;
+        FT->files[i]->linkcount = 0;
+        FT->files[i]->timestamp = 0;
+    }	
+        FT->files[0]->path = malloc(2);
+        strcpy(FT->files[0]->path,"/");
 		FT->files[0]->is_init = true;
 		FT->files[0] -> file_type = DIR_NODE;
 
-	}	
+		
     log_conn(conn);
     log_fuse_context(fuse_get_context());
 
-    //return SFS_DATA;
-	return FT;
+    return SFS_DATA;
 }
 
 /**
@@ -199,15 +198,21 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     strcpy(fpath,path); 
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
+    if(getFilePath(fpath) == NULL)
+    {
+        return -1;
+    }
    	//lookup the FILE TABLE FOR THE PATH;
     statbuf->st_dev = 0;
     statbuf->st_ino = 0;
     Inode * file = getFilePath(fpath);
     statbuf->st_mode = S_IRWXU;
     statbuf->st_nlink = file->linkcount;
+    log_msg("HERE!\n");
     //How do we get the userid of the person who ran the program?
-    statbuf->st_uid = 0;
-    statbuf->st_gid = 1234;
+    statbuf->st_uid = getuid();
+    statbuf->st_gid = getgid();
+    log_msg("HERE2\n");
     statbuf->st_size = fileSize(file);
     statbuf->st_atime = file-> timestamp;
     statbuf->st_mtime = 0;
@@ -370,7 +375,6 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n",
 	  path, fi);
-    
     
     return retstat;
 }
