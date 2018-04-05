@@ -138,14 +138,18 @@ int fileTotalSize(Inode * file)
 void *sfs_init(struct fuse_conn_info *conn)
 {
     fprintf(stderr, "in bb-init\n");
-    struct sfs_state * state = SFS_DATA; 
-    disk_open(state->diskfile);
     log_msg("\nsfs_init()\n");
+    //struct sfs_state * state = SFS_DATA; 
+	//log_msg("STATE BEFORE %p",state);
+    //log_fuse_context(fuse_get_context());
+    log_conn(conn);
+    disk_open((SFS_DATA)->diskfile);
 	FT = malloc(sizeof(FileTable *));
 	FT ->num_free_inodes = totalsize/BLOCK_SIZE;
 	FT->size = totalsize/BLOCK_SIZE;
 	FT ->files = malloc(FT->num_free_inodes*sizeof(FileTable *));
 	int i = 0;
+
 	for(i=0;i<FT->num_free_inodes;i++)
     {
 		FT->files[i] = malloc(sizeof(Inode));
@@ -167,12 +171,9 @@ void *sfs_init(struct fuse_conn_info *conn)
 		FT->files[0] -> file_type = DIR_NODE;
 
 		
-    log_conn(conn);
-    fuse_get_context()->uid = getuid();
+   fuse_get_context()->uid = getuid();
     fuse_get_context()->gid = getgid();
-    fuse_get_context()->pid = getpid();
-    log_fuse_context(fuse_get_context());
-
+   fuse_get_context()->pid = getpid();
     return SFS_DATA;
 }
 
@@ -210,19 +211,30 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     statbuf->st_dev = 0;
     statbuf->st_ino = 0;
     Inode * file = getFilePath(fpath);
-    statbuf->st_mode = S_IRWXU;
-    statbuf->st_nlink = file->linkcount;
+	if(strcmp(path, "/")==0){
+	
+    	statbuf->st_mode = S_IFDIR | 0755;
+   	 	statbuf->st_nlink = 2;
+	}
+	else{
+    	statbuf->st_mode = S_IRWXU;
+    	statbuf->st_nlink = file->linkcount;
+	}
     log_msg("HERE!\n");
     //How do we get the userid of the person who ran the program?
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
     log_msg("HERE2\n");
     statbuf->st_size = fileSize(file);
+    log_msg("HERE3\n");
     statbuf->st_atime = file-> timestamp;
+    log_msg("HERE4\n");
     statbuf->st_mtime = 0;
     statbuf->st_ctime = 0;
     statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
+
+	log_msg("HERE5\n");
     return retstat;
 }
 
