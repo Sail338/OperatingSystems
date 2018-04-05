@@ -87,8 +87,6 @@ Inode * getFilePath(char * path)
     }
     else
     {
-        log_msg("fount a duder to return\n");
-        sleep(10);
         return ptr;
     }
 
@@ -140,6 +138,8 @@ int fileTotalSize(Inode * file)
 void *sfs_init(struct fuse_conn_info *conn)
 {
     fprintf(stderr, "in bb-init\n");
+    struct sfs_state * state = SFS_DATA; 
+    disk_open(state->diskfile);
     log_msg("\nsfs_init()\n");
 	FT = malloc(sizeof(FileTable *));
 	FT ->num_free_inodes = totalsize/BLOCK_SIZE;
@@ -168,6 +168,9 @@ void *sfs_init(struct fuse_conn_info *conn)
 
 		
     log_conn(conn);
+    fuse_get_context()->uid = getuid();
+    fuse_get_context()->gid = getgid();
+    fuse_get_context()->pid = getpid();
     log_fuse_context(fuse_get_context());
 
     return SFS_DATA;
@@ -200,6 +203,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 	  path, statbuf);
     if(getFilePath(fpath) == NULL)
     {
+        errno = EBADF;
         return -1;
     }
    	//lookup the FILE TABLE FOR THE PATH;
@@ -217,7 +221,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     statbuf->st_atime = file-> timestamp;
     statbuf->st_mtime = 0;
     statbuf->st_ctime = 0;
-    statbuf->st_blksize = BLOCK_SIZE;
+    statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
     return retstat;
 }
