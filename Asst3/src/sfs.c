@@ -46,6 +46,29 @@ int ceil_bytes(int numBytes)
     }
     return x;
 }
+int writeFS()
+{
+    char buffer[BLOCK_SIZE];
+    buffer[0] = 1;
+    *(int*)(buffer+1) = FT->num_free_inodes;
+    *(int*)(buffer+5) = FT->size;
+    int ret = block_write(0,buffer);
+    int blockCurr = 1;
+    int blockCount = 0;
+    int i;
+    for(i = 0; i < FT->size; i++)
+    {
+        dummyInode * temp = malloc(sizeof(dummyInode));
+
+    }
+
+}
+
+
+
+
+
+
 
 //Loaf the File System from Disk
 int loadFS()
