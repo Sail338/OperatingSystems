@@ -26,13 +26,73 @@
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
-
+#define MAX_INODES 300
 #include "log.h"
 #include "util.h"
 ///////////////////////////////////////////////////////////////////////
 //
 //Helper Function
 //
+
+int ceil_bytes(int numBytes)
+{
+    double blk_size = BLOCK_SIZE;
+    double bytes = numBytes;
+    double divided = bytes/blk_size;
+    int x = (int)divided;
+    if(divided - (double)x > 0)
+    {
+        return x+1;
+    }
+    return x;
+}
+
+//Loaf the File System from Disk
+int loadFS()
+{
+   int totalSize = ceil_bytes(MAX_INODES * BLOCK_SIZE + 1 + 4 + 4);
+   char buffer[totalSize];
+   int ret = block_read(totalSize,buffer);
+   else if(ret < 0)
+   {
+        return ret;
+   }
+   FT = malloc(osizeof(FileTable*));
+   if(ret == 0)
+   {
+        FT->num_free_inodes = totalsize/BLOCK_SIZE;
+        FT->size = totalsize/BLOCK_SIZE;
+   }
+   else
+   {
+        FT->num_free_inodes = (int)buffer[1];
+        FT->size = (int)buffer[5];
+   }
+   FT->files = malloc(FT->num_free_inodes*sizeof(FileTable*));
+   int i;
+   for(i=0; FT->num_free_inodes;i++)
+   {
+    Inode * file = FT->files[i];
+    FT->files[i]=malloc(sizeof(Inode));
+    FT->files[i]->fd = i*BLOCK_SIZE;
+    if(ret == 0)
+    {
+        file->permissions = -1;
+        file->file_type = 0;
+        file->spaceleft = BLOCK_SIZE;
+        file->next = NULL;
+        file->prev = NULL;
+        file->is_init = false;
+    }
+    else
+    {
+
+    }
+   }
+}
+
+
+
 
 
 Inode * getFileFD(int fd)

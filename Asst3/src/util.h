@@ -26,12 +26,12 @@ typedef struct Inode
 				time_t timestamp;
 				//above is what we only care about in the frist thing in the chain
 				//space left in INODE
-				int spaceleft;
+				short spaceleft;
 				//pointer to next inode in the chain
 			    struct Inode *  next;
 				struct Inode *prev;
 				bool is_init;
-				int linkcount;
+				short linkcount;
 			
 }Inode;
 			
