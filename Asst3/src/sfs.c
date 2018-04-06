@@ -26,7 +26,7 @@
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
-#define MAX_INODES 300
+#define MAX_INODES 1530
 #include "log.h"
 #include "util.h"
 ///////////////////////////////////////////////////////////////////////
@@ -50,32 +50,34 @@ int ceil_bytes(int numBytes)
 //Loaf the File System from Disk
 int loadFS()
 {
-   int totalSize = ceil_bytes(MAX_INODES * BLOCK_SIZE + 1 + 4 + 4);
-   char buffer[totalSize];
-   int ret = block_read(totalSize,buffer);
-   else if(ret < 0)
+   char buffer[BLOCK_SIZE];
+   int init = block_read(0,buffer);
+   if(init < 0)
    {
-        return ret;
+        return init;
    }
-   FT = malloc(osizeof(FileTable*));
-   if(ret == 0)
+   FT = malloc(sizeof(FileTable*));
+   if(init == 0)
    {
-        FT->num_free_inodes = totalsize/BLOCK_SIZE;
-        FT->size = totalsize/BLOCK_SIZE;
+        FT->num_free_inodes = MAX_INODES;
+        FT->size = MAX_INODES;
    }
    else
    {
         FT->num_free_inodes = (int)buffer[1];
         FT->size = (int)buffer[5];
+        ret = block_read(BLOCK_SIZE,buffer);
    }
-   FT->files = malloc(FT->num_free_inodes*sizeof(FileTable*));
+   FT->files = malloc(FT->num_free_inodes*sizeof(Inode*));
    int i;
-   for(i=0; FT->num_free_inodes;i++)
+   int blockCount = 0;
+   int blockCurr = 1;
+   for(i=0; FT->size;i++)
    {
     Inode * file = FT->files[i];
-    FT->files[i]=malloc(sizeof(Inode));
-    FT->files[i]->fd = i*BLOCK_SIZE;
-    if(ret == 0)
+    file=malloc(sizeof(Inode));
+    file -> fd = i*BLOCK_SIZE;
+    if(init == 0)
     {
         file->permissions = -1;
         file->file_type = 0;
@@ -86,7 +88,41 @@ int loadFS()
     }
     else
     {
-
+        Inode * temp = (struct dummyInode)buffer[blockCount*sizeof(struct dummyInode)];
+        file->permissions = temp->permissions;
+        file->file_type = temp->file_type;
+        file->spaceleft = temp->spaceleft;
+        file->next = temp-> is_init = temp->is_init
+    
+        blockCount+=1;
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode))+1)
+        {
+            blockCount = 0;
+            blockCurr++;
+            ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+            if(ret == 0 || ret < 0)
+            {
+                return -99;
+            }
+        }
+    }
+   }
+   //blockCurr doesnt increment on the last one to move on to the file paths so we increment after the for loop
+   blockCurr++;
+   ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+   //Going through path blocks now
+   for(i = 0; FT->size;i++)
+   {
+    Inode * file = FT->file[i];
+    if(init != 0)
+    {
+        mempcy(file->path,buffer,BLOCK_SIZE);
+        blockCurr++;
+        ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+        if(ret == 0 || ret < 0)
+        {
+            return -99;
+        }
     }
    }
 }

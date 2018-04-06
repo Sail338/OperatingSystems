@@ -21,7 +21,7 @@ typedef struct Inode
 				char  file_type;
 	
 				//path
-				char *path;
+				char path[512];
 				//timestamp
 				time_t timestamp;
 				//above is what we only care about in the frist thing in the chain
@@ -34,8 +34,37 @@ typedef struct Inode
 				short linkcount;
 			
 }Inode;
-			
-			
+
+typedef struct dummyInode
+{
+
+		        //we only care aboyt the positon for the first inode in the chain
+				int file_position;
+				int fd;
+				//permissions the file was created with
+				int permissions;
+				//permssions the file currently using
+				int  file_mode;
+			    //is this a file or folder
+				char  file_type;	
+				//path
+				//timestamp
+				time_t timestamp;
+				//above is what we only care about in the frist thing in the chain
+				//space left in INODE
+				short spaceleft;
+				//pointer to next inode in the chain
+			    struct Inode *  next;
+				struct Inode *prev;
+				bool is_init;
+				short linkcount;
+
+}dummyInode;
+
+
+
+
+
 			
 			
 /*
@@ -52,3 +81,5 @@ FileTable * FT;
 Inode * getFileFD(int);
 Inode * getFilePath(char*);
 int fileSize(Inode *);
+int loadFS();
+int ceil_bytes(int);
