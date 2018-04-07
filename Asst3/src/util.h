@@ -20,18 +20,21 @@ typedef struct Inode
 			//is this a file or folder
 				char  file_type;
 	
-				//path
-				char path[512];
+				//file name for current file; Should be able to store 4 in one disk block
+				char fileName[128];
 				//timestamp
 				time_t timestamp;
 				//above is what we only care about in the frist thing in the chain
 				//space left in INODE
 				short spaceleft;
 				//pointer to next inode in the chain
-			    struct Inode *  next;
-				struct Inode *prev;
+			    int next;
+				int prev;
+                //Used to build the path
+                int parent;
 				bool is_init;
 				short linkcount;
+                char modified;
 			
 }Inode;
 
@@ -41,6 +44,7 @@ typedef struct dummyInode
 		        //we only care aboyt the positon for the first inode in the chain
 				int file_position;
 				int fd;
+                char modified;
 				//permissions the file was created with
 				int permissions;
 				//permssions the file currently using
@@ -53,9 +57,11 @@ typedef struct dummyInode
 				//above is what we only care about in the frist thing in the chain
 				//space left in INODE
 				short spaceleft;
-				//pointer to next inode in the chain
-			    struct Inode *  next;
-				struct Inode *prev;
+				//fd to next inode in the chain
+			    int next;
+				int prev;
+                //We can use this to build a complete path
+                int parent;
 				bool is_init;
 				short linkcount;
 
@@ -83,3 +89,4 @@ Inode * getFilePath(char*);
 int fileSize(Inode *);
 int loadFS();
 int ceil_bytes(int);
+int writeFS(int);

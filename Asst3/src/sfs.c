@@ -46,7 +46,10 @@ int ceil_bytes(int numBytes)
     }
     return x;
 }
-int writeFS()
+//If init is 1 then we cannot continue any file, but if it is 0 we can skip some because we know that there is
+//def. a node in that place.
+//If 0 is returned -> everything went accordingly
+int writeFS(int init)
 {
     char buffer[BLOCK_SIZE];
     buffer[0] = 1;
@@ -58,9 +61,62 @@ int writeFS()
     int i;
     for(i = 0; i < FT->size; i++)
     {
+        Inode * file = FT->files[i];
+        if(file->modified == 0 && init == 0)
+        {
+            continue;
+        }
         dummyInode * temp = malloc(sizeof(dummyInode));
-
+        temp->file_position = file->file_position;
+        temp->fd = file->fd;
+        temp->permissions = file->permissions;
+        temp->file_mode = file->file_mode;
+        temp->file_type = file->file_type;
+        temp->timestamp = file->timestamp;
+        temp->spaceleft = file->spaceleft;
+        temp->next = file->next;
+        temp->prev = file->prev;
+        temp->parent = file->parent;
+        temp->is_init = file->is_init;
+        temp->linkcount = file->linkcount;
+        memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
+        file->modified = 0;
+        blockCount++;
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
+        {
+            blockCount = 0;
+            int ret = block_write(blockCurr*BLOCK_SIZE,buffer);
+            if(ret < 0)
+            {
+                return ret;
+            }
+            blockCurr++;
+        }
     }
+    blockCount = 0;
+    blockCurr++; 
+    for(i =0; i < FT->size;i++)
+    {
+        Inode * file = FT->files[i];
+        if(file->modified ==0 && init == 0)
+        {
+            continue;
+        }
+        memcpy(buffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
+        blockCount++;
+        if(blockCount == 5)
+        {
+            blockCount = 0;
+            int ret = block_write(blockCurr*BLOCK_SIZE,buffer);
+            blockCurr++;
+            if(ret < 0)
+            {
+                return ret;
+            }
+        }
+    }
+    
+    return 0;
 
 }
 
@@ -70,11 +126,15 @@ int writeFS()
 
 
 
-//Loaf the File System from Disk
+//Load the File System from Disk
+//If this function returns 0 -> assume all went well and you have the data structure in memory
+//If this function returns -99 -> this shouldnt be happening
+//If this function returns <0 && !-99 -> systems error
 int loadFS()
 {
    char buffer[BLOCK_SIZE];
    int init = block_read(0,buffer);
+   int ret = 0;
    if(init < 0)
    {
         return init;
@@ -90,6 +150,10 @@ int loadFS()
         FT->num_free_inodes = (int)buffer[1];
         FT->size = (int)buffer[5];
         ret = block_read(BLOCK_SIZE,buffer);
+        if(ret < 0)
+        {
+            return ret;
+        }
    }
    FT->files = malloc(FT->num_free_inodes*sizeof(Inode*));
    int i;
@@ -100,23 +164,26 @@ int loadFS()
     Inode * file = FT->files[i];
     file=malloc(sizeof(Inode));
     file -> fd = i*BLOCK_SIZE;
+    file->modified=0;
     if(init == 0)
     {
         file->permissions = -1;
         file->file_type = 0;
         file->spaceleft = BLOCK_SIZE;
-        file->next = NULL;
-        file->prev = NULL;
+        file->next = -1;
+        file->prev = -1;
         file->is_init = false;
+        file->parent = -1;
     }
     else
     {
-        Inode * temp = (struct dummyInode)buffer[blockCount*sizeof(struct dummyInode)];
+        dummyInode * temp = (struct dummyInode*)(buffer+blockCount*sizeof(struct dummyInode));
         file->permissions = temp->permissions;
         file->file_type = temp->file_type;
         file->spaceleft = temp->spaceleft;
-        file->next = temp-> is_init = temp->is_init
-    
+        file->next = temp-> next;
+        file->prev = temp->prev;
+        file->parent = temp->parent;
         blockCount+=1;
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode))+1)
         {
@@ -133,21 +200,36 @@ int loadFS()
    //blockCurr doesnt increment on the last one to move on to the file paths so we increment after the for loop
    blockCurr++;
    ret = block_read(BLOCK_SIZE*blockCurr,buffer);
-   //Going through path blocks now
+   blockCount = 0;
+   //Going through file name blocks now
    for(i = 0; FT->size;i++)
    {
-    Inode * file = FT->file[i];
+    Inode * file = FT->files[i];
     if(init != 0)
     {
-        mempcy(file->path,buffer,BLOCK_SIZE);
+        memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE);
         blockCurr++;
-        ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+        blockCount += 1;
+        if(blockCount == (int)(BLOCK_SIZE / 4))
+        {
+            blockCount = 0;
+            ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+        }
         if(ret == 0 || ret < 0)
         {
             return -99;
         }
     }
    }
+   if(init == 0)
+   {
+        int writeRet = writeFS(1);
+        if(writeRet < 0)
+        {
+            return writeRet;
+        }
+   }
+   return 0;
 }
 
 
@@ -179,22 +261,64 @@ Inode * getFileFD(int fd)
     }
 }
 
+int validatePath(char * path, Inode * ptr)
+{
+    int firstSlash = 0;
+    int secondSlash = strlen(path)-1;
+    int i = strlen(path)-1;
+    char fileName[128];
+    while(i >= 0)
+    {
+        if(path[i] == '/')
+        {
+            firstSlash = i;
+            memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash+1);
+            secondSlash=i;
+            if(strcmp(getFileFD(getFileFD(ptr->fd)->parent)->fileName,fileName) == 0)
+            {
+                ptr = getFileFD(ptr->parent);
+            }
+            else
+            {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+
 Inode * getFilePath(char * path)
 {
-    
     if(path == NULL)
     {
         log_msg("Nullerino");
         return NULL;
     }
+    int fileNameIndex = strlen(path);
+    while(path[fileNameIndex] != '/')
+    {
+        fileNameIndex--;
+    }
+    fileNameIndex++;
+    char fileName[128];
+    memcpy(fileName,(path+fileNameIndex),strlen(path)-1);
     Inode * ptr = FT->files[0];
     int pos = 1;
-    while(pos < FT->size && strcmp(path,ptr->path) != 0)
+    while(pos < FT->size) 
     {
-        if(FT->files[pos]->path == NULL)
+        if(FT->files[pos]->fileName == NULL)
         {
             pos+=1;
             continue;
+        }
+        if(strcmp(fileName,ptr->fileName) == 0)
+        {
+            int ret = validatePath(path,ptr);
+            if(ret == 1)
+            {
+                break;
+            }
         }
         ptr = FT->files[pos];
         pos+=1;
@@ -214,11 +338,11 @@ Inode * getFilePath(char * path)
 int fileSize(Inode * file)
 {
     int total = BLOCK_SIZE - file->spaceleft;
-    file = file->next;
+    file = getFileFD(file->next);
     while(file != NULL)
     {
         total += (BLOCK_SIZE - file->spaceleft);
-        file = file->next;
+        file = getFileFD(file->next);
     }
     return total;
 }
@@ -230,7 +354,7 @@ int fileTotalSize(Inode * file)
     while(file != NULL)
     {
         total += BLOCK_SIZE;
-        file = file->next;
+        file = getFileFD(file->next);
     }
     return total;
 }
@@ -263,36 +387,19 @@ void *sfs_init(struct fuse_conn_info *conn)
     //log_fuse_context(fuse_get_context());
     log_conn(conn);
     disk_open((SFS_DATA)->diskfile);
-	FT = malloc(sizeof(FileTable *));
-	FT ->num_free_inodes = totalsize/BLOCK_SIZE;
-	FT->size = totalsize/BLOCK_SIZE;
-	FT ->files = malloc(FT->num_free_inodes*sizeof(FileTable *));
-	int i = 0;
-
-	for(i=0;i<FT->num_free_inodes;i++)
+	int ret = loadFS();
+    if(ret != 0)
     {
-		FT->files[i] = malloc(sizeof(Inode));
-		FT ->files[i] -> file_position = 0;
-		FT ->files[i]->fd = i*BLOCK_SIZE;
-		FT->files[i]->permissions = -1;
-		FT -> files[i] ->file_type = NONE;
-		FT -> files[i] -> spaceleft = BLOCK_SIZE;
-		FT -> files[i] -> next = NULL;
-		FT ->files[i] ->prev = NULL;
-		FT ->files[i]->is_init = false;
-		FT->files[i] -> path = NULL;
-        FT->files[i]->linkcount = 0;
-        FT->files[i]->timestamp = 0;
-    }	
-        FT->files[0]->path = malloc(2);
-        strcpy(FT->files[0]->path,"/");
-		FT->files[0]->is_init = true;
-		FT->files[0] -> file_type = DIR_NODE;
-
+        log_msg("COULD NOT LOAD FS!\n");
+        return;
+    }
+    memcpy(FT->files[0]->fileName,"/",2);
+	FT->files[0]->is_init = true;
+	FT->files[0] -> file_type = DIR_NODE;
 		
-   fuse_get_context()->uid = getuid();
+    fuse_get_context()->uid = getuid();
     fuse_get_context()->gid = getgid();
-   fuse_get_context()->pid = getpid();
+    fuse_get_context()->pid = getpid();
     return SFS_DATA;
 }
 
