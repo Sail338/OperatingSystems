@@ -51,7 +51,7 @@ int ceil_bytes(int numBytes)
 //If 0 is returned -> everything went accordingly
 int writeFS(int init)
 {
-    char buffer[BLOCK_SIZE];
+    char * buffer = malloc(512);
     buffer[0] = 1;
     *(int*)(buffer+1) = FT->num_free_inodes;
     *(int*)(buffer+5) = FT->size;
@@ -63,7 +63,7 @@ int writeFS(int init)
     for(i = 0; i < FT->size; i++)
     {
         Inode * file = FT->files[i];
-        log_msg("ITERATION %d\n",i);
+//        log_msg("ITERATION %d\n",i);
         if(file->modified == 0)
         {
 
@@ -82,9 +82,7 @@ int writeFS(int init)
         temp->parent = file->parent;
         temp->is_init = file->is_init;
         temp->linkcount = file->linkcount;
-        memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
-        file->modified = 0;
-        blockCount++;
+
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
         {
             blockCount = 0;
@@ -97,13 +95,17 @@ int writeFS(int init)
             }
             blockCurr++;
         }
+        memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
+        file->modified = 0;
+        blockCount++;
     }
     log_msg("Finished Writing Structure without Path~\n");
     blockCount = 0;
     blockCurr++; 
-    for(i =0; i < FT->size;i++)
+	int j;
+    for(j =0; j < FT->size;j++)
     {
-        Inode * file = FT->files[i];
+        Inode * file = FT->files[j];
         if(file->modified ==0 && init == 0)
         {
             continue;
@@ -122,6 +124,7 @@ int writeFS(int init)
         }
     }
     log_msg("FS written to disk!\n");
+
     return 0;
 }
 
@@ -235,7 +238,7 @@ int loadFS()
    if(init == 0) 
    {
         int writeRet = writeFS(1);
-        log_msg("writeRet: %d\n buffer senpai notice me\n",writeRet);
+        fprintf(stderr,"Senpai notice me my dude\n");
         if(writeRet < 0)
         {
             return writeRet;
