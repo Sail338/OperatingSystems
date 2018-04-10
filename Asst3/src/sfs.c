@@ -318,7 +318,7 @@ Inode * getFilePath(char * path)
         fileNameIndex--;
     }
     fileNameIndex++;
-    if(fileNameIndex > strlen(path))
+    if(fileNameIndex > strlen(path)-1)
     {
         log_msg("Small Path - Almost certain its root: %s\n",path);
         return FT->files[0];
