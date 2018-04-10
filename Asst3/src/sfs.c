@@ -62,8 +62,8 @@ int writeFS(int init)
     log_msg("String write to FS| Free:%d\tSize: %d\n",FT->num_free_inodes,FT->size);
     for(i = 0; i < FT->size; i++)
     {
-        log_msg("ITERATION %d\n",i);
         Inode * file = FT->files[i];
+        log_msg("ITERATION %d\n",i);
         if(file->modified == 0)
         {
 
@@ -82,9 +82,7 @@ int writeFS(int init)
         temp->parent = file->parent;
         temp->is_init = file->is_init;
         temp->linkcount = file->linkcount;
-        log_msg("1\n");
         memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
-        log_msg("2\n");
         file->modified = 0;
         blockCount++;
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
@@ -125,7 +123,6 @@ int writeFS(int init)
     }
     log_msg("FS written to disk!\n");
     return 0;
-
 }
 
 
@@ -171,7 +168,7 @@ int loadFS()
    log_msg("String write to FS| Free:%d\tSize: %d\n",FT->num_free_inodes,FT->size);
    for(i=0; i<FT->size;i++)
    {
-    log_msg("ITERATION %d\n",i);
+    //log_msg("ITERATION %d\n",i);
     FT->files[i]=malloc(sizeof(Inode));
     Inode * file = FT->files[i];
     file -> fd = i*BLOCK_SIZE;
@@ -235,9 +232,10 @@ int loadFS()
         }
     }
    }
-   if(init == 0)
+   if(init == 0) 
    {
         int writeRet = writeFS(1);
+        log_msg("writeRet: %d\n buffer senpai notice me\n",writeRet);
         if(writeRet < 0)
         {
             return writeRet;
