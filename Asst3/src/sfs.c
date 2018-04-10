@@ -290,7 +290,7 @@ int validatePath(char * path, Inode * ptr)
             firstSlash = i;
             memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash+1);
             secondSlash=i;
-            if(strcmp(getFileFD(getFileFD(ptr->fd)->parent)->fileName,fileName) == 0)
+            if(strcmp(getFileFD(ptr->parent)->fileName,fileName) == 0)
             {
                 ptr = getFileFD(ptr->parent);
             }
@@ -299,6 +299,7 @@ int validatePath(char * path, Inode * ptr)
                 return 0;
             }
         }
+        i--;
     }
     return 1;
 }
@@ -311,20 +312,26 @@ Inode * getFilePath(char * path)
         log_msg("Nullerino");
         return NULL;
     }
-    int fileNameIndex = strlen(path);
+    int fileNameIndex = strlen(path)-1;
     while(path[fileNameIndex] != '/')
     {
         fileNameIndex--;
     }
     fileNameIndex++;
+    if(fileNameIndex > strlen(path))
+    {
+        log_,sg("Small Path - Almost certain its root: %s\n",path);
+        return FT->files[0];
+    }
     char fileName[128];
     memcpy(fileName,(path+fileNameIndex),strlen(path)-1);
-    Inode * ptr = FT->files[0];
-    int pos = 1;
+    Inode * ptr = FT->files[1];
+    int pos = 2;
     while(pos < FT->size) 
     {
-        if(FT->files[pos]->fileName == NULL)
+        if(ptr->fileName == NULL)
         {
+            ptr = FT->files[pos];
             pos+=1;
             continue;
         }
