@@ -128,6 +128,8 @@ int writeFS(int init)
             blockCount++;
             if(blockCount == 4)
             {
+
+            	int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
                 blockCount = 0;
                 blockCurr++;
                 retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
@@ -255,7 +257,7 @@ int loadFS()
     Inode * file = FT->files[i];
     if(init != 0)
     {
-        if(blockCount == (int)(BLOCK_SIZE/4))
+        if(blockCount == 4)
         {
             blockCount = 0;
             ret = block_read(BLOCK_SIZE*blockCurr,buffer);
@@ -263,8 +265,9 @@ int loadFS()
             {
                 return -99;
             }
+			continue;
         }
-        memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE);
+        memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE/4);
         blockCurr++;
         blockCount += 1;
     }
@@ -472,8 +475,8 @@ void *sfs_init(struct fuse_conn_info *conn)
     //struct sfs_state * state = SFS_DATA; 
 	//log_msg("STATE BEFORE %p",state);
     //log_fuse_context(fuse_get_context());
-    sleep(20);
     log_conn(conn);
+	sleep(15);
     disk_open((SFS_DATA)->diskfile);
 	int ret = loadFS();
     if(ret != 0)
@@ -593,6 +596,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     file->timestamp = time(NULL);
     file->parent = FT->files[0]->fd;
     writeFS(0);
+
     return retstat;
 }
 
