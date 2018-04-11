@@ -97,7 +97,8 @@ int writeFS(int init)
             log_msg("Wrote current block to disk! %d\n",ret);
             if(ret < 0)
             {
-                return ret
+                return ret;
+
             }
             blockCurr++;
             retStruct = block_read(blockCurr * BLOCK_SIZE, buffer);
@@ -117,7 +118,7 @@ int writeFS(int init)
     blockCount = 0;
     blockCurr++; 
 	int j;
-    char readBuffer[BLOCK_SIZE];
+    char readbuffer[BLOCK_SIZE];
     int retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
     for(j =0; j < FT->size;j++)
     {
@@ -134,24 +135,24 @@ int writeFS(int init)
             }
             continue;
         }
-        memcpy(readBuffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
+        memcpy(readbuffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
         blockCount++;
         if(blockCount == 4)
         {
             blockCount = 0;
-            int ret = block_write(blockCurr*BLOCK_SIZE,readBuffer);
+            int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
             blockCurr++;
             if(ret < 0)
             {
                 return ret;
             }
-            retread = block_read(blockCurr * BLOCK_SIZE, readBuffer);
+            retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
         }
         file->modified = 0;
     }
     if(blockCount != 0)
     {
-        int ret = block_write(blockCurr*BLOCK_SIZE,readBuffer);
+        int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
         if(ret < 0)
         {
             return ret;
