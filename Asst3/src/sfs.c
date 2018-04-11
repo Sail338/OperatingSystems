@@ -59,6 +59,7 @@ int writeFS(int init)
     int blockCurr = 1;
     int blockCount = 0;
     int i;
+    int retStruct = block_read(blockCurr * BLOCK_SIZE, buffer);
     log_msg("String write to FS| Free:%d\tSize: %d\n",FT->num_free_inodes,FT->size);
     for(i = 0; i < FT->size; i++)
     {
@@ -66,7 +67,13 @@ int writeFS(int init)
 //        log_msg("ITERATION %d\n",i);
         if(file->modified == 0)
         {
-
+            blockCount += 1;
+            if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
+            {
+                blockCount = 0;
+                blockCurr++;
+                retStruct = block_read(blockCurr * BLOCK_SIZE,buffer);
+            }
             continue;
         }
         dummyInode * temp = malloc(sizeof(dummyInode));
@@ -82,7 +89,6 @@ int writeFS(int init)
         temp->parent = file->parent;
         temp->is_init = file->is_init;
         temp->linkcount = file->linkcount;
-
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
         {
             blockCount = 0;
@@ -91,40 +97,67 @@ int writeFS(int init)
             log_msg("Wrote current block to disk! %d\n",ret);
             if(ret < 0)
             {
-                return ret;
+                return ret
             }
             blockCurr++;
+            retStruct = block_read(blockCurr * BLOCK_SIZE, buffer);
         }
         memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
-        file->modified = 0;
         blockCount++;
+    }
+    if(blockCount != 0)
+    {
+        int ret = block_write(blockCurr * BLOCK_SIZE,buffer);
+        if(ret < 0)
+        {
+            return ret;
+        }
     }
     log_msg("Finished Writing Structure without Path~\n");
     blockCount = 0;
     blockCurr++; 
 	int j;
+    char readBuffer[BLOCK_SIZE];
+    int retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
     for(j =0; j < FT->size;j++)
     {
         Inode * file = FT->files[j];
         if(file->modified ==0 && init == 0)
         {
+            blockCount++;
+            if(blockCount == 4)
+            {
+                blockCount = 0;
+                blockCurr++;
+                retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
+
+            }
             continue;
         }
-        memcpy(buffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
+        memcpy(readBuffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
         blockCount++;
-        if(blockCount == 5)
+        if(blockCount == 4)
         {
             blockCount = 0;
-            int ret = block_write(blockCurr*BLOCK_SIZE,buffer);
+            int ret = block_write(blockCurr*BLOCK_SIZE,readBuffer);
             blockCurr++;
             if(ret < 0)
             {
                 return ret;
             }
+            retread = block_read(blockCurr * BLOCK_SIZE, readBuffer);
+        }
+        file->modified = 0;
+    }
+    if(blockCount != 0)
+    {
+        int ret = block_write(blockCurr*BLOCK_SIZE,readBuffer);
+        if(ret < 0)
+        {
+            return ret;
         }
     }
     log_msg("FS written to disk!\n");
-
     return 0;
 }
 
@@ -438,6 +471,7 @@ void *sfs_init(struct fuse_conn_info *conn)
     //struct sfs_state * state = SFS_DATA; 
 	//log_msg("STATE BEFORE %p",state);
     //log_fuse_context(fuse_get_context());
+    sleep(20);
     log_conn(conn);
     disk_open((SFS_DATA)->diskfile);
 	int ret = loadFS();
@@ -449,6 +483,8 @@ void *sfs_init(struct fuse_conn_info *conn)
     memcpy(FT->files[0]->fileName,"/",2);
 	FT->files[0]->is_init = true;
 	FT->files[0] -> file_type = S_IFDIR;
+    FT->files[0]->modified = 1;
+    writeFS(0);
     log_msg("Finished SFS INIT\n");	
     fuse_get_context()->uid = getuid();
     fuse_get_context()->gid = getgid();
@@ -555,6 +591,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     file->file_mode = mode;
     file->timestamp = time(NULL);
     file->parent = FT->files[0]->fd;
+    writeFS(0);
     return retstat;
 }
 

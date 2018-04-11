@@ -34,7 +34,7 @@ typedef struct Inode
                 int parent;
 				bool is_init;
 				short linkcount;
-                char modified;
+                int modified;
 			
 }Inode;
 
@@ -44,7 +44,7 @@ typedef struct dummyInode
 		        //we only care aboyt the positon for the first inode in the chain
 				int file_position;
 				int fd;
-                char modified;
+                int modified;
 				//permissions the file was created with
 				int permissions;
 				//permssions the file currently using
