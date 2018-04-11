@@ -18,7 +18,7 @@ typedef struct Inode
 						//permssions the file currently using
 				int  file_mode;
 			//is this a file or folder
-				char  file_type;
+				int  file_type;
 	
 				//file name for current file; Should be able to store 4 in one disk block
 				char fileName[128];
@@ -50,7 +50,7 @@ typedef struct dummyInode
 				//permssions the file currently using
 				int  file_mode;
 			    //is this a file or folder
-				char  file_type;	
+				int  file_type;	
 				//path
 				//timestamp
 				time_t timestamp;

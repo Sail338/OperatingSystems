@@ -277,6 +277,25 @@ Inode * getFileFD(int fd)
     }
 }
 
+
+Inode * findFreeInode()
+{
+    int i = 0;
+    while(i < FT->size)
+    {
+        if(FT->files[i]->is_init == 1)
+        {
+            i++;
+        }
+        else
+        {
+            return FT->files[i];
+        }
+    }
+    return NULL;
+}
+
+
 int validatePath(char * path, Inode * ptr)
 {
     int firstSlash = 0;
@@ -370,6 +389,8 @@ int fileSize(Inode * file)
     return total;
 }
 
+
+
 int fileTotalSize(Inode * file)
 {
     int total = 0;
@@ -418,7 +439,7 @@ void *sfs_init(struct fuse_conn_info *conn)
     }
     memcpy(FT->files[0]->fileName,"/",2);
 	FT->files[0]->is_init = true;
-	FT->files[0] -> file_type = S_ISDIR;
+	FT->files[0] -> file_type = S_IFDIR;
     log_msg("Finished SFS INIT\n");	
     fuse_get_context()->uid = getuid();
     fuse_get_context()->gid = getgid();
@@ -454,7 +475,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     Inode * file = getFilePath(fpath);
     if(file == NULL)
     {
-        errno = EBADF;
+        errno = ENOENT;
         return -1;
     }
    	//lookup the FILE TABLE FOR THE PATH;
@@ -466,7 +487,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
    	 	statbuf->st_nlink = 2;
 	}
 	else{
-    	statbuf->st_mode = file->file_type | 0755;
+    	statbuf->st_mode = file->file_type | file->file_mode;
     	statbuf->st_nlink = file->linkcount;
 	}
     //How do we get the userid of the person who ran the program?
@@ -498,8 +519,23 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
-    
-    
+    char * temp = malloc(strlen(path));
+    strcpy(temp,path);
+    if(getFilePath(temp) == 0)
+    {
+        return retstat;
+    }
+    Inode * file = findFreeInode();
+    if(file == NULL)
+    {
+        return -ENOMEM;
+    }
+    file->is_init = 1;
+    file->modified = 1;
+    memcpy(file->fileName,path,strlen(path));
+    file->file_mode = mode;
+    file->timestamp = time(NULL);
+    file->parent = FT->files[0]->fd;
     return retstat;
 }
 
@@ -663,7 +699,27 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 	       struct fuse_file_info *fi)
 {
     int retstat = 0;
-    
+    char * temp = malloc(strlen(path));
+    strcpy(temp,path);
+    Inode * dir = getFilePath(temp);
+    int i = 1;
+    while(i < FT->size)
+    {
+        Inode * file = FT->files[i];
+        if(file->parent != dir->fd)
+        {
+            continue;
+        }
+        else
+        {
+            struct stat * newStat = malloc(sizeof(struct stat));
+            newStat->st_mode = file->file_type | 0755;
+            if(filler(buf,file->fileName,newStat,0) != 0)
+            {
+                return -ENOMEM;
+            }
+        }
+    }
     return retstat;
 }
 
