@@ -476,7 +476,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     if(file == NULL)
     {
         errno = ENOENT;
-        return -1;
+        return -ENOENT;
     }
    	//lookup the FILE TABLE FOR THE PATH;
     statbuf->st_dev = 0;
@@ -702,13 +702,14 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     char * temp = malloc(strlen(path));
     strcpy(temp,path);
     Inode * dir = getFilePath(temp);
-    int i = 1;
+    int i = 0;
     while(i < FT->size)
     {
         Inode * file = FT->files[i];
         if(file->parent != dir->fd)
         {
-            continue;
+			i++;
+			continue;
         }
         else
         {
@@ -719,6 +720,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
                 return -ENOMEM;
             }
         }
+		i++;
     }
     return retstat;
 }
