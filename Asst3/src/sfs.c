@@ -221,18 +221,18 @@ int loadFS()
     Inode * file = FT->files[i];
     if(init != 0)
     {
-        memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE);
-        blockCurr++;
-        blockCount += 1;
-        if(blockCount == (int)(BLOCK_SIZE / 4))
+        if(blockCount == (int)(BLOCK_SIZE/4))
         {
             blockCount = 0;
             ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+            if(ret ==0 || ret < 0)
+            {
+                return -99;
+            }
         }
-        if(ret == 0 || ret < 0)
-        {
-            return -99;
-        }
+        memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE);
+        blockCurr++;
+        blockCount += 1;
     }
    }
    if(init == 0) 
@@ -418,7 +418,7 @@ void *sfs_init(struct fuse_conn_info *conn)
     }
     memcpy(FT->files[0]->fileName,"/",2);
 	FT->files[0]->is_init = true;
-	FT->files[0] -> file_type = DIR_NODE;
+	FT->files[0] -> file_type = S_ISDIR;
     log_msg("Finished SFS INIT\n");	
     fuse_get_context()->uid = getuid();
     fuse_get_context()->gid = getgid();
@@ -451,7 +451,8 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     strcpy(fpath,path); 
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
-    if(getFilePath(fpath) == NULL)
+    Inode * file = getFilePath(fpath);
+    if(file == NULL)
     {
         errno = EBADF;
         return -1;
@@ -459,31 +460,24 @@ int sfs_getattr(const char *path, struct stat *statbuf)
    	//lookup the FILE TABLE FOR THE PATH;
     statbuf->st_dev = 0;
     statbuf->st_ino = 0;
-    Inode * file = getFilePath(fpath);
 	if(strcmp(path, "/")==0){
 	
     	statbuf->st_mode = S_IFDIR | 0755;
    	 	statbuf->st_nlink = 2;
 	}
 	else{
-    	statbuf->st_mode = S_IRWXU;
+    	statbuf->st_mode = file->file_type | 0755;
     	statbuf->st_nlink = file->linkcount;
 	}
-    log_msg("HERE!\n");
     //How do we get the userid of the person who ran the program?
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
-    log_msg("HERE2\n");
     statbuf->st_size = fileSize(file);
-    log_msg("HERE3\n");
     statbuf->st_atime = file-> timestamp;
-    log_msg("HERE4\n");
     statbuf->st_mtime = 0;
     statbuf->st_ctime = 0;
     statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
-
-	log_msg("HERE5\n");
     return retstat;
 }
 
@@ -669,7 +663,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 	       struct fuse_file_info *fi)
 {
     int retstat = 0;
-
+    
     return retstat;
 }
 
