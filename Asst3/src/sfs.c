@@ -254,13 +254,13 @@ int loadFS()
 
 Inode * getFileFD(int fd)
 {
-    if(IS_FILE_TABLE_INIT == 0)
+/*    if(IS_FILE_TABLE_INIT == 0)
     {
         //This method should not be called if the File Table is not created
         return NULL;
-    }
+    }*/
     Inode * ptr = FT->files[0];
-    int pos = 1;
+    int pos = 0;
     while(pos < FT->size && ptr->fd != fd)
     {
         ptr = FT->files[pos];
@@ -302,10 +302,18 @@ int validatePath(char * path, Inode * ptr)
     int secondSlash = strlen(path)-1;
     int i = strlen(path)-1;
     char fileName[128];
+	int init =0;
     while(i >= 0)
     {
         if(path[i] == '/')
         {
+			if(init == 0)
+			{
+					secondSlash=i;
+					init = 1;
+					i--;
+					continue;
+			}
             firstSlash = i;
             memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash+1);
             secondSlash=i;
@@ -343,7 +351,7 @@ Inode * getFilePath(char * path)
         return FT->files[0];
     }
     char fileName[128];
-    memcpy(fileName,(path+fileNameIndex),strlen(path)-1);
+    strcpy(fileName,(path+fileNameIndex));
     Inode * ptr = FT->files[1];
     int pos = 2;
     while(pos < FT->size) 
@@ -356,6 +364,7 @@ Inode * getFilePath(char * path)
         }
         if(strcmp(fileName,ptr->fileName) == 0)
         {
+				//not sure what this is doing 
             int ret = validatePath(path,ptr);
             if(ret == 1)
             {
@@ -475,7 +484,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     Inode * file = getFilePath(fpath);
     if(file == NULL)
     {
-        errno = ENOENT;
         return -ENOENT;
     }
    	//lookup the FILE TABLE FOR THE PATH;
@@ -494,9 +502,9 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
     statbuf->st_size = fileSize(file);
-    statbuf->st_atime = file-> timestamp;
-    statbuf->st_mtime = 0;
-    statbuf->st_ctime = 0;
+    statbuf->st_atime = time(NULL);
+    statbuf->st_mtime = time(NULL);
+    statbuf->st_ctime = file->timestamp;
     statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
     return retstat;
@@ -516,15 +524,17 @@ int sfs_getattr(const char *path, struct stat *statbuf)
  */
 int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+	errno = 0;
     int retstat = 0;
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
     char * temp = malloc(strlen(path));
     strcpy(temp,path);
-    if(getFilePath(temp) == 0)
+	//why do we need this?
+   /* if(getFilePath(temp) == 0)
     {
         return retstat;
-    }
+    }*/
     Inode * file = findFreeInode();
     if(file == NULL)
     {
@@ -532,7 +542,16 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     }
     file->is_init = 1;
     file->modified = 1;
-    memcpy(file->fileName,path,strlen(path));
+	char* buf = malloc(strlen(path));
+	strcpy(buf,path);
+	char * last = strrchr(buf, '/');;
+	last = last+1;
+	if(last !=NULL){
+		strcpy(file->fileName,last);
+
+	}
+
+    //memcpy(file->fileName,path,strlen(path));
     file->file_mode = mode;
     file->timestamp = time(NULL);
     file->parent = FT->files[0]->fd;
