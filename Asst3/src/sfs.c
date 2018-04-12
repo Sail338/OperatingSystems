@@ -59,7 +59,7 @@ int writeFS(int init)
     int blockCurr = 1;
     int blockCount = 0;
     int i;
-    int retStruct = block_read(blockCurr * BLOCK_SIZE, buffer);
+    int retStruct = block_read(blockCurr, buffer);
     log_msg("String write to FS| Free:%d\tSize: %d\n",FT->num_free_inodes,FT->size);
     for(i = 0; i < FT->size; i++)
     {
@@ -70,9 +70,10 @@ int writeFS(int init)
             blockCount += 1;
             if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
             {
+				block_write(blockCurr,buffer);
                 blockCount = 0;
                 blockCurr++;
-                retStruct = block_read(blockCurr * BLOCK_SIZE,buffer);
+                retStruct = block_read(blockCurr,buffer);
             }
             continue;
         }
@@ -89,11 +90,11 @@ int writeFS(int init)
         temp->parent = file->parent;
         temp->is_init = file->is_init;
         temp->linkcount = file->linkcount;
-        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) +1)
         {
             blockCount = 0;
             log_msg("About to write block to disk!\n");
-            int ret = block_write(blockCurr*BLOCK_SIZE,buffer);
+            int ret = block_write(blockCurr,buffer);
             log_msg("Wrote current block to disk! %d\n",ret);
             if(ret < 0)
             {
@@ -101,14 +102,15 @@ int writeFS(int init)
 
             }
             blockCurr++;
-            retStruct = block_read(blockCurr * BLOCK_SIZE, buffer);
+            retStruct = block_read(blockCurr, buffer);
         }
         memcpy(buffer+(blockCount*sizeof(dummyInode)),temp,sizeof(dummyInode));
         blockCount++;
     }
     if(blockCount != 0)
     {
-        int ret = block_write(blockCurr * BLOCK_SIZE,buffer);
+        int ret = block_write(blockCurr,buffer);
+
         if(ret < 0)
         {
             return ret;
@@ -119,7 +121,7 @@ int writeFS(int init)
     blockCurr++; 
 	int j;
     char readbuffer[BLOCK_SIZE];
-    int retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
+    int retread = block_read(blockCurr, readbuffer);
     for(j =0; j < FT->size;j++)
     {
         Inode * file = FT->files[j];
@@ -129,10 +131,10 @@ int writeFS(int init)
             if(blockCount == 4)
             {
 
-            	int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
+            	int ret = block_write(blockCurr,readbuffer);
                 blockCount = 0;
                 blockCurr++;
-                retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
+                retread = block_read(blockCurr, readbuffer);
 
             }
             continue;
@@ -142,19 +144,19 @@ int writeFS(int init)
         if(blockCount == 4)
         {
             blockCount = 0;
-            int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
+            int ret = block_write(blockCurr,readbuffer);
             blockCurr++;
             if(ret < 0)
             {
                 return ret;
             }
-            retread = block_read(blockCurr * BLOCK_SIZE, readbuffer);
+            retread = block_read(blockCurr, readbuffer);
         }
         file->modified = 0;
     }
     if(blockCount != 0)
     {
-        int ret = block_write(blockCurr*BLOCK_SIZE,readbuffer);
+        int ret = block_write(blockCurr,readbuffer);
         if(ret < 0)
         {
             return ret;
@@ -194,7 +196,7 @@ int loadFS()
    {
         FT->num_free_inodes = *(int*)(buffer+1);
         FT->size = *(int*)(buffer+5);
-        ret = block_read(BLOCK_SIZE,buffer);
+        ret = block_read(1,buffer);
         if(ret < 0)
         {
             return ret;
@@ -237,7 +239,7 @@ int loadFS()
             blockCount = 0;
             blockCurr++;
             log_msg("Starting Block Read\n");
-            ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+            ret = block_read(blockCurr,buffer);
             log_msg("Finished Block Read on return: %d\n",ret);
             if(ret == 0 || ret < 0)
             {
@@ -249,7 +251,7 @@ int loadFS()
    log_msg("Finished Loading in all Blocks! Without Path\n");
    //blockCurr doesnt increment on the last one to move on to the file paths so we increment after the for loop
    blockCurr++;
-   ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+   ret = block_read(blockCurr,buffer);
    blockCount = 0;
    //Going through file name blocks now
    for(i = 0; i < FT->size;i++)
@@ -260,7 +262,7 @@ int loadFS()
         if(blockCount == 4)
         {
             blockCount = 0;
-            ret = block_read(BLOCK_SIZE*blockCurr,buffer);
+            ret = block_read(blockCurr,buffer);
             if(ret ==0 || ret < 0)
             {
                 return -99;
