@@ -159,7 +159,7 @@ AUTOMAKE = ${SHELL} /ilab/users/ssa123/Documents/cThings/OS/OperatingSystems/Ass
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O0
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
