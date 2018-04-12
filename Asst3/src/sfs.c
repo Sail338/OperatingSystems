@@ -63,7 +63,7 @@ int writeFS(int init)
     for(i = 0; i < FT->size; i++)
     {
         Inode * file = FT->files[i];
-        if(file->modified == 0)
+       /* if(file->modified == 0)
         {
             blockCount += 1;
             if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) + 1)
@@ -74,7 +74,7 @@ int writeFS(int init)
                 retStruct = block_read(blockCurr,buffer);
             }
             continue;
-        }
+        }*/
         dummyInode * temp = malloc(sizeof(dummyInode));
         temp->file_position = file->file_position;
         temp->fd = file->fd;
@@ -120,10 +120,10 @@ int writeFS(int init)
     for(j =0; j < FT->size;j++)
     {
         Inode * file = FT->files[j];
-        if(file->modified ==0 && init == 0)
+/*        if(file->modified ==0 && init == 0)
         {
             blockCount++;
-            if(blockCount == 4)
+         *   if(blockCount == 4)
             {
 
             	int ret = block_write(blockCurr,readbuffer);
@@ -132,8 +132,8 @@ int writeFS(int init)
                 retread = block_read(blockCurr, readbuffer);
 
             }
-            continue;
-        }
+            continue;*/
+        
         memcpy(readbuffer+(blockCount * (BLOCK_SIZE/4)),file->fileName,(int)(BLOCK_SIZE/4));
         blockCount++;
         if(blockCount == 4)
@@ -262,14 +262,15 @@ int loadFS()
         if(blockCount == 4)
         {
             blockCount = 0;
+            blockCurr++;
             ret = block_read(blockCurr,buffer);
             if(ret ==0 || ret < 0)
             {
                 log_msg("NUMA 2        %d\n",ret);
                 return -99;
             }
-            blockCurr++;
-			continue;
+			//continue;
+
         }
         memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE/4);
         blockCount += 1;
@@ -536,7 +537,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
    	 	statbuf->st_nlink = 2;
 	}
 	else{
-    	statbuf->st_mode = file->file_type | file->file_mode;
+    	statbuf->st_mode = file->file_mode;
     	statbuf->st_nlink = file->linkcount;
 	}
     //How do we get the userid of the person who ran the program?
