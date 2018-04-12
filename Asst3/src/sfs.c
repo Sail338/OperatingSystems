@@ -88,7 +88,7 @@ int writeFS(int init)
         temp->parent = file->parent;
         temp->is_init = file->is_init;
         temp->linkcount = file->linkcount;
-        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)) +1)
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
         {
             blockCount = 0;
             int ret = block_write(blockCurr,buffer);
@@ -201,10 +201,10 @@ int loadFS()
    int blockCurr = 1;
    for(i=0; i<FT->size;i++)
    {
-    FT->files[i]=malloc(sizeof(Inode));
+    FT->files[i]=(Inode *)malloc(sizeof(Inode));
     Inode * file = FT->files[i];
     file -> fd = i*BLOCK_SIZE;
-    file->modified=1;
+    //file->modified=1;
     if(init == 0)
     {
         file->permissions = -1;
@@ -221,7 +221,7 @@ int loadFS()
     }
     else
     {
-        dummyInode * temp = (struct dummyInode*)(buffer+blockCount*sizeof(struct dummyInode));
+        dummyInode * temp = (struct dummyInode*)(buffer+(blockCount*sizeof(struct dummyInode)));
         file->permissions = temp->permissions;
         file->file_type = temp->file_type;
         file->spaceleft = temp->spaceleft;
@@ -234,7 +234,7 @@ int loadFS()
         file->is_init = temp->is_init;
         file->linkcount = temp->linkcount;
         blockCount+=1;
-        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode))+1)
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
         {
             blockCount = 0;
             blockCurr++;
