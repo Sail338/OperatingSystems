@@ -90,3 +90,5 @@ int fileSize(Inode *);
 int loadFS();
 int ceil_bytes(int);
 int writeFS(int);
+int get_parent(const char *);
+

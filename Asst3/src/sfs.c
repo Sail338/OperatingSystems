@@ -570,13 +570,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
-    char * temp = malloc(strlen(path));
-    strcpy(temp,path);
-	//why do we need this?
-   /* if(getFilePath(temp) == 0)
-    {
-        return retstat;
-    }*/
     Inode * file = findFreeInode();
     if(file == NULL)
     {
@@ -587,20 +580,51 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	char* buf = malloc(strlen(path));
 	strcpy(buf,path);
 	char * last = strrchr(buf, '/');;
+	//problem for future Sam and SaraAnn - what if last is null?
 	last = last+1;
-	if(last !=NULL){
+	if(last !=NULL)
+	{
 		strcpy(file->fileName,last);
-
 	}
 
     //memcpy(file->fileName,path,strlen(path));
     file->file_mode = mode;
     file->timestamp = time(NULL);
-    file->parent = FT->files[0]->fd;
+    //right now this just hardcodes to set root to be the parent
+	//TODO: use SaraAnn's string parsing method to get the actual parent
+	file->parent =  get_parent(path);
     writeFS(0);
-
     return retstat;
 }
+
+int get_parent (const char * full_path)
+{
+	char * buffer = malloc(128);
+	memcpy (buffer, full_path, 128);
+	//if you've fucked up royally and somehow got passed the root directory as a param
+	if (full_path == NULL || strlen(full_path) == 1)
+		return -5;
+	int i;
+	char curr;
+	for (i = strlen(full_path)-1; curr!= '/'; i--)
+	{
+		curr = full_path[i];
+	}
+	//When crr == '/' we go back i again, so we need to bring it back
+	i++;	
+	//return root if the param was directly below root directory
+	if (i == 0)
+	{
+		return 0;
+	}
+	//truncate the path so that it just leads to the parent directory
+	else
+	{
+		buffer[i] = '\0';
+		return getFilePath(buffer)->fd;
+	}
+}
+
 
 /** Remove a file */
 int sfs_unlink(const char *path)
