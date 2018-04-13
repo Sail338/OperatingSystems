@@ -179,6 +179,11 @@ int loadFS()
    {
         return init;
    }
+   //Destory was called 
+   if(init == 512 && *(int*)buffer == 0)
+   {
+        init = 0;
+   }
    FT = malloc(sizeof(FileTable*));
    if(init == 0)
    {
@@ -508,6 +513,21 @@ void *sfs_init(struct fuse_conn_info *conn)
 void sfs_destroy(void *userdata)
 {
     log_msg("\nsfs_destroy(userdata=0x%08x)\n", userdata);
+    char block[128];
+    int ret = block_read(0,block);
+    if(ret == 0 | ret < 0)
+    {
+        log_msg("Bad Destory: Read\n");
+    }
+    *(int*)block = 0;
+    ret = block_write(0,block);
+    if(ret == 0 || ret < 0)
+    {
+        log_msg("Bad Destory: Write\n");
+    }
+    loadFS();
+    struct sfs_state * sfs_data = (struct sfs_state *)userdata;
+    disk_close(sfs_data->diskfile);
 }
 
 /** Get file attributes.
@@ -594,6 +614,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	//TODO: use SaraAnn's string parsing method to get the actual parent
 	file->parent =  get_parent(path);
     writeFS(0);
+    FT->num_free_inodes--;
     return retstat;
 }
 
@@ -654,6 +675,7 @@ int sfs_unlink(const char *path)
 		{
 			log_msg("Something wrong with unlink");
 		}
+        FT->num_free_inodes++;
 		victim = getFileFD(next);
 	}
     return retstat;
