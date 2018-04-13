@@ -478,7 +478,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//log_msg("STATE BEFORE %p",state);
     //log_fuse_context(fuse_get_context());
     log_conn(conn);
-	sleep(15);
+	//sleep(15);
     disk_open((SFS_DATA)->diskfile);
 	int ret = loadFS();
     if(ret != 0)
@@ -625,14 +625,37 @@ int get_parent (const char * full_path)
 	}
 }
 
+int reinit(Inode * victim)
+{
+	victim->file_position = 0;
+	victim->fileName[0] = '\0';
+	victim->is_init = 0;
+	victim->parent = -1;
+	victim->modified = 1;
+	victim->next = -1;
+	victim->prev = -1;
+	victim->spaceleft = BLOCK_SIZE;
+}
 
 /** Remove a file */
 int sfs_unlink(const char *path)
 {
     int retstat = 0;
     log_msg("sfs_unlink(path=\"%s\")\n", path);
-
-    
+	char * buffer = malloc(128);
+	strcpy(buffer,path);
+	int next;
+	Inode * victim = getFilePath(buffer);
+	while(victim != NULL)
+	{
+		next = victim->next;
+		int ret = reinit(victim);
+		if(ret != 0)
+		{
+			log_msg("Something wrong with unlink");
+		}
+		victim = getFileFD(next);
+	}
     return retstat;
 }
 

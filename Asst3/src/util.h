@@ -10,7 +10,7 @@ int IS_FILE_TABLE_INIT;
 #define DIR_NODE 2
 typedef struct Inode
 {
-			//we only care aboyt the positon for the first inode in the chain
+			//we only care about the positon for the first inode in the chain
 				int file_position;
 				int fd;
 				//permissions the file was created with
@@ -91,4 +91,4 @@ int loadFS();
 int ceil_bytes(int);
 int writeFS(int);
 int get_parent(const char *);
-
+int reinit(Inode *);
