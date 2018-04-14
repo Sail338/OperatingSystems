@@ -711,6 +711,7 @@ int sfs_open(const char *path, struct fuse_file_info *fi)
         return -1 * errno;
     }
     file->file_mode = fi->flags;
+    writeFS(0);
     return file->fd;
 }
 
