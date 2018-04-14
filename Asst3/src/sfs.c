@@ -691,14 +691,27 @@ int sfs_unlink(const char *path)
  *
  * Changed in version 2.2
  */
+//Do we have to conside the user/group/all permissions when opening a file?
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
     log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
 	    path, fi);
-
-    
-    return retstat;
+    char * buffer = malloc(128);
+    strcpy(buffer,path);
+    Inode * file = getFilePath(buffer);
+    if(file == NULL)
+    {
+        errno = ENOENT;
+        return -1 * errno;
+    }
+    if(file->file_type == S_IFDIR)
+    {
+        errno = EISDIR;
+        return -1 * errno;
+    }
+    file->file_mode = fi->flags;
+    return file->fd;
 }
 
 /** Release an open file
