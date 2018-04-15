@@ -201,7 +201,7 @@ int loadFS()
             return ret;
         }
    }
-   FT->files = malloc(FT->num_free_inodes*sizeof(Inode*));
+   FT->files = malloc(FT->size*sizeof(Inode*));
    int i;
    int blockCount = 0;
    int blockCurr = 1;
@@ -361,7 +361,8 @@ int validatePath(char * path, Inode * ptr)
 					continue;
 			}
             firstSlash = i;
-            memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash+1);
+            memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash-1);
+            fileName[secondSlash-firstSlash-1]='\0';
             secondSlash=i;
             if(strcmp(getFileFD(ptr->parent)->fileName,fileName) == 0)
             {
@@ -484,7 +485,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//log_msg("STATE BEFORE %p",state);
     //log_fuse_context(fuse_get_context());
     log_conn(conn);
-	sleep(15);
+    //sleep(15);
     disk_open((SFS_DATA)->diskfile);
 	int ret = loadFS();
     if(ret != 0)
@@ -515,18 +516,7 @@ void sfs_destroy(void *userdata)
 {
     log_msg("\nsfs_destroy(userdata=0x%08x)\n", userdata);
     char block[128];
-    int ret = block_read(0,block);
-    if(ret == 0 | ret < 0)
-    {
-        log_msg("Bad Destory: Read\n");
-    }
-    *(int*)block = 0;
-    ret = block_write(0,block);
-    if(ret == 0 || ret < 0)
-    {
-        log_msg("Bad Destory: Write\n");
-    }
-    loadFS();
+    writeFS(0);
     struct sfs_state * sfs_data = (struct sfs_state *)userdata;
     disk_close(sfs_data->diskfile);
 }
@@ -561,7 +551,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     	statbuf->st_mode = file->file_mode;
     	statbuf->st_nlink = file->linkcount;
 	}
-    //How do we get the userid of the person who ran the program?
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
     statbuf->st_size = fileSize(file);
@@ -779,13 +768,13 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     char * buffer = malloc(strlen(path));
     strcpy(buffer,path);
     Inode * file = getFilePath(buffer);
-    if(file->permission != O_WRONLY && file->permissions != O_RDWR)
+    if(file->permissions != O_WRONLY && file->permissions != O_RDWR)
     {
         errno = EACCES;
         return -1;
     }
     //WE shouldnt link inodes if we know this write isnt going to work
-    if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCKSIZE) > FT->num_free_inodes)
+    if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCK_SIZE) > FT->num_free_inodes)
     {
         errno = ENOMEM;
         return -1;
@@ -810,7 +799,8 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     }
     int amountLeft = BLOCK_SIZE - offset;
     int jump = file->fd / 512;
-    char * buffer = malloc(512);
+    free(buffer);
+    buffer = malloc(512);
     int currPointer = 0;
     while(size > 0)
     {
@@ -857,7 +847,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             file = getFileFD(file->next);
             if(file == NULL)
             {
-                newFile = findFreeInode();
+                Inode * newFile = findFreeInode();
                 if(newFile == NULL)
                 {
                     log_msg("This Error should not occur, happening in WRITE\n");
@@ -899,14 +889,16 @@ int sfs_mkdir(const char *path, mode_t mode)
     dir->file_type = S_IFDIR;
     dir->file_mode = S_IFDIR | mode;
     dir->linkcount = 2;
+    dir->timestamp = time(NULL);
+    dir->parent = get_parent(path);
     int slash = strlen(path)-1;
     while(path[slash] != '/')
     {
         slash--;
     }
     strcpy(dir->fileName,path+slash+1);
-    dir->file_mode = mode;
     writeFS(0);
+    FT->num_free_inodes--;
     return retstat;
 }
 
@@ -924,7 +916,7 @@ int sfs_rmdir(const char *path)
     int i = 1;
     while( i < FT->size)
     {
-        if(FT->files[1]->parent == dir->fd)
+        if(FT->files[i]->parent == dir->fd)
         {
             errno = ENOTEMPTY;
             return -1;
