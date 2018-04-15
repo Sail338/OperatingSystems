@@ -815,6 +815,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             memcpy(buffer+offset,buf+currPointer,amountLeft);
             currPointer += amountLeft;
             offset = 0;
+            file->spaceleft-=amountLeft;
         }
 
         else if(orgSize < amountLeft)
@@ -825,6 +826,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             }
             memcpy(buffer,buf+currPointer,size);
             currPointer += size;
+            file->spaceleft-=size;
         }
         else
         {
@@ -834,6 +836,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             }
             memcpy(buffer,buf+currPointer,amountLeft);
             currPointer += amountLeft;
+            file->spaceleft-=amountLeft;
         }
         int ret = block_write(WRITE_ZONE +jump,buffer);
         if(ret == 0 || ret < 0)
