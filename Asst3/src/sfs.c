@@ -793,7 +793,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		}
 		size -= num_read;
 		file = getFileFD(file->next);
-		jump = file -> fd/BLOCK_SIZE);
+		jump = file -> fd/BLOCK_SIZE;
 	}
     return total_read;
 }
