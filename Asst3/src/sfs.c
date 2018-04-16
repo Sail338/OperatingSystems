@@ -728,12 +728,13 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
 
     return retstat;
 }
-
+//TODO: see about padding with zeros - it seems like the only time would need to do that is on EOF, no?
 /** Read data from an open file
  *
  * Read should return exactly the number of bytes requested except
  * on EOF or error, otherwise the rest of the data will be
- * substituted with zeroes.  An exception to this is when the
+ * substituted with zeroes.  TODO: wtf does this mean???
+ * An exception to this is when the
  * 'direct_io' mount option is specified, in which case the return
  * value of the read system call will reflect the return value of
  * this operation.
@@ -743,13 +744,61 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
 int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
-    log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+    int num_read = 0;
+	int total_read = 0;
+	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
-
-   
-    return retstat;
+	char * path_buffer = malloc(strlen(path));
+	strcpy(path_buffer, path);
+	Inode * file = getFilePath(path_buffer);
+	if (file->permissions != O_RDONLY && file->permissions != O_RDWR)
+	{
+		errno = EACCES;
+		return -1;
+	}
+	//if the offset is bigger than a block, move along inodes until you find the correct block
+	while (offset >= BLOCK_SIZE)
+	{
+		file = getFileFD(file->next);
+		offset -= BLOCK_SIZE;
+	}
+	int jump = file->fd/512;
+  	char intermediate_buffer [512];	
+	
+	if (offset > 0)
+	{
+		int ret = block_read(WRITE_ZONE+jump, intermediate_buffer);
+		//copy only the relevant bytes into the buffer being returned to the user
+		memcpy(buf, intermediate_buffer+offset, 512-offset); 
+		total_read = 512 - offset;
+		size -= total_read;
+		//progress to the next block
+		file = getFileFD(file->next);
+		jump = file->fd/BLOCK_SIZE;
+	}
+	while (size > 0)
+	{
+		int ret = block_read(WRITE_ZONE+jump, intermediate_buffer);
+		if (size >= 512)
+		{
+			memcpy(buf+total_read, intermediate_buffer, 512);
+			num_read = 512;
+			total_read += 512;
+		}
+		else
+		{
+			memcpy(buf+total_read, intermediate_buffer, size);
+			num_read = size;
+			total_read += num_read;
+		}
+		size -= num_read;
+		file = getFileFD(file->next);
+		jump = file -> fd/BLOCK_SIZE);
+	}
+    return total_read;
 }
 
+//TODO: if there isn't enough space to write all that was requested, should you write as much as there IS space for, and return that, or should you just reject the whole operation?
 /** Write data to an open file
  *
  * Write should return exactly the number of bytes requested
@@ -762,31 +811,35 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
     int retstat = 0;
-    int the_size = size;
+    //# of bytes to originally write, since size variable changes
+	int the_size = size;
     log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
     char * buffer = malloc(strlen(path));
     strcpy(buffer,path);
     Inode * file = getFilePath(buffer);
+	//check and validate write permissions
     if(file->permissions != O_WRONLY && file->permissions != O_RDWR)
     {
         errno = EACCES;
         return -1;
     }
-    //WE shouldnt link inodes if we know this write isnt going to work
+    //We shouldn't link inodes if we know there aren't enough free files for this to work
     if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCK_SIZE) > FT->num_free_inodes)
     {
         errno = ENOMEM;
         return -1;
     }
-    while(offset >= BLOCK_SIZE)
+    //this loop is for allocation of ENTIRE blocks if there isn't already sufficient space linked to the original inode
+	while(offset >= BLOCK_SIZE)
     {
         Inode * old = file;
         file = getFileFD(file->next);
         if(file == NULL)
         {
             Inode * newFile = findFreeInode();
-            if(newFile == NULL)
+            //THIS SHOULD NOT HAPPEN. IF YOU GET HERE AND THIS HAPPENS SOMETHING IS HORRIBLY WRONG
+			if(newFile == NULL)
             {
                 errno = ENOMEM;
                 return -1;
@@ -794,22 +847,26 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             old->next = newFile->fd;
             newFile->prev = old->fd;
             file = newFile;
+			FT->num_free_inodes --;
         }
-        offset -= BLOCK_SIZE;
+    	offset -= BLOCK_SIZE;
     }
-    int amountLeft = BLOCK_SIZE - offset;
-    int jump = file->fd / 512;
     free(buffer);
     buffer = malloc(512);
+	//#of bytes left to write in CURRENT (not necessarily starting) BLOCK
+	int amountLeft = BLOCK_SIZE - offset;
+    int jump = file->fd / 512;
     int currPointer = 0;
-    while(size > 0)
+    //this is for the actual writing process
+	while(size > 0)
     {
         int orgSize = size;
         size -= amountLeft;
         //When deciding how many bytes to memcpy from the user buffer
         //we look at which one is smaller, size or amountLeft
         //The smaller one should be the amount of bytes we copy over
-        if(offset != 0)
+        	//this is the case you don't write from the very beginning, in which case you need to read, rewrite the old info, and then rewrite whatever is left
+		if(offset != 0)
         {
             int ret = block_read(WRITE_ZONE + jump, buffer);
             memcpy(buffer+offset,buf+currPointer,amountLeft);
@@ -891,7 +948,8 @@ int sfs_mkdir(const char *path, mode_t mode)
     dir->modified = 1;
     dir->file_type = S_IFDIR;
     dir->file_mode = S_IFDIR | mode;
-    dir->linkcount = 2;
+	//TODO: do we increment linkcount if a file is created in the directory?
+	dir->linkcount = 2;
     dir->timestamp = time(NULL);
     dir->parent = get_parent(path);
     int slash = strlen(path)-1;
@@ -931,7 +989,6 @@ int sfs_rmdir(const char *path)
     writeFS(0);
     return retstat;
 }
-
 
 /** Open directory
  *
@@ -1000,6 +1057,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     return retstat;
 }
 
+//WTF IS THIS
 /** Release directory
  *
  * Introduced in version 2.3
@@ -1007,12 +1065,11 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 int sfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
-
-
     return retstat;
 }
 
-struct fuse_operations sfs_oper = {
+struct fuse_operations sfs_oper = 
+{
   .init = sfs_init,
   .destroy = sfs_destroy,
 
