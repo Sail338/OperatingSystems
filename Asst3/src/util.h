@@ -81,6 +81,7 @@ typedef struct FileTable
 	Inode ** files;
 	int num_free_inodes;
 	int size;			
+    int write_zone;
 			
 }FileTable;
 FileTable * FT;

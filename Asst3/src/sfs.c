@@ -27,7 +27,7 @@
 #include <sys/xattr.h>
 #endif
 #define MAX_INODES 1530
-#define WRITE_ZONE (sizeof(dummyInode)*MAX_INODES)/BLOCK_SIZE  + (128 * MAX_INODES)/512
+//#define WRITE_ZONE (sizeof(dummyInode)*MAX_INODES)/BLOCK_SIZE  + (128 * MAX_INODES)/BLOCK_SIZE
 #include "log.h"
 #include "util.h"
 ///////////////////////////////////////////////////////////////////////
@@ -224,6 +224,13 @@ int loadFS()
         file->prev = -1;
         file->is_init = false;
         file->parent = -1;
+        blockCount+=1;
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
+        {
+            blockCount = 0;
+            blockCurr++;
+        }
+
     }
     else
     {
@@ -279,8 +286,15 @@ int loadFS()
 
         }
         memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE/4);
-        blockCount += 1;
     }
+    else if(blockCount == 4)
+    {
+            blockCount = 0;
+            blockCurr++;
+
+    }
+    blockCount+=1;
+
    }
    if(init == 0) 
    {
@@ -291,6 +305,7 @@ int loadFS()
             return writeRet;
         }
    }
+   FT->write_zone = blockCurr+1;
    return 0;
 }
 
@@ -762,7 +777,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	int total_read = 0;
 	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
-	char * path_buffer = malloc(strlen(path));
+	char * path_buffer = malloc(128);
 	strcpy(path_buffer, path);
 	Inode * file = getFilePath(path_buffer);
 	if (file->permissions != O_RDONLY && file->permissions != O_RDWR)
@@ -777,11 +792,11 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		offset -= BLOCK_SIZE;
 	}
 	int jump = file->fd/512;
-  	char intermediate_buffer [512];	
+  	char * intermediate_buffer = malloc(BLOCK_SIZE);	
 	
 	if (offset > 0)
 	{
-		int ret = block_read(WRITE_ZONE+jump, intermediate_buffer);
+		int ret = block_read(FT->write_zone+jump, intermediate_buffer);
 		//copy only the relevant bytes into the buffer being returned to the user
 		memcpy(buf, intermediate_buffer+offset, 512-offset); 
 		total_read = 512 - offset;
@@ -792,7 +807,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	}
 	while (size > 0)
 	{
-		int ret = block_read(WRITE_ZONE+jump, intermediate_buffer);
+		int ret = block_read(FT->write_zone+jump, intermediate_buffer);
 		if (size >= 512)
 		{
 			memcpy(buf+total_read, intermediate_buffer, 512);
@@ -842,6 +857,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
         errno = EACCES;
         return -1;
     }
+    //this math isn't quite perfect - for example if the offset is 512 but the size is 1, it should get two inodes but here it only gets one
     //We shouldn't link inodes if we know there aren't enough free files for this to work
     if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCK_SIZE) > FT->num_free_inodes)
     {
@@ -893,7 +909,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
         	//this is the case you don't write from the very beginning, in which case you need to read, rewrite the old info, and then rewrite whatever is left
 		if(offset != 0)
         {
-            int ret = block_read(WRITE_ZONE + jump, buffer);
+            int ret = block_read(FT->write_zone + jump, buffer);
             memcpy(buffer+offset,buf+currPointer,amountLeft);
             currPointer += amountLeft;
             offset = 0;
@@ -904,23 +920,23 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
         {
             if(orgSize < BLOCK_SIZE)
             {
-                int ret = block_read(WRITE_ZONE + jump, buffer);
+                int ret = block_read(FT->write_zone + jump, buffer);
             }
             memcpy(buffer,buf+currPointer,orgSize);
-            currPointer += size;
-            file->spaceleft-=size;
+            currPointer += orgSize;
+            file->spaceleft-=orgSize;
         }
         else
         {
             if(orgSize < BLOCK_SIZE)
             {
-                int ret = block_read(WRITE_ZONE + jump, buffer);
+                int ret = block_read(FT->write_zone + jump, buffer);
             }
             memcpy(buffer,buf+currPointer,amountLeft);
             currPointer += amountLeft;
             file->spaceleft-=amountLeft;
         }
-        int ret = block_write(WRITE_ZONE +jump,buffer);
+        int ret = block_write(FT->write_zone +jump,buffer);
         if(ret == 0 || ret < 0)
         {
             log_msg("I/O ERROR Hello?\n");
