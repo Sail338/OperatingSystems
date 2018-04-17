@@ -358,6 +358,17 @@ int validatePath(char * path, Inode * ptr)
 					secondSlash=i;
 					init = 1;
 					i--;
+                    if(i < 0)
+                    {
+                        if(ptr->parent == 0)
+                        {
+                            return 1;
+                        }
+                        else
+                        {
+                            return 0;
+                        }
+                    }
 					continue;
 			}
             firstSlash = i;
@@ -548,7 +559,8 @@ int sfs_getattr(const char *path, struct stat *statbuf)
    	 	statbuf->st_nlink = 2;
 	}
 	else{
-    	statbuf->st_mode = file->file_mode;
+    	//statbuf->st_mode = file->file_mode;
+        statbuf->st_mode = file->file_mode;
     	statbuf->st_nlink = file->linkcount;
 	}
     statbuf->st_uid = getuid();
@@ -598,7 +610,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	}
 
     //memcpy(file->fileName,path,strlen(path));
-    file->file_mode = mode;
+    file->file_mode = S_IFREG | 0755;
+
     file->timestamp = time(NULL);
     //right now this just hardcodes to set root to be the parent
 	//TODO: use SaraAnn's string parsing method to get the actual parent
@@ -646,6 +659,7 @@ int reinit(Inode * victim)
 	victim->next = -1;
 	victim->prev = -1;
 	victim->spaceleft = BLOCK_SIZE;
+    return 0;
 }
 
 /** Remove a file */
@@ -700,9 +714,9 @@ int sfs_open(const char *path, struct fuse_file_info *fi)
         errno = EISDIR;
         return -1 * errno;
     }
-    file->file_mode = fi->flags;
+    file->permissions = O_RDWR;
     writeFS(0);
-    return file->fd;
+    return 0;
 }
 
 /** Release an open file
@@ -793,6 +807,10 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		}
 		size -= num_read;
 		file = getFileFD(file->next);
+        if(file == NULL)
+        {
+            break;
+        }
 		jump = file -> fd/BLOCK_SIZE;
 	}
     return total_read;
@@ -861,7 +879,14 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	while(size > 0)
     {
         int orgSize = size;
-        size -= amountLeft;
+        if(size < amountLeft)
+        {
+            size = 0;
+        }
+        else
+        {
+            size -= amountLeft;
+        }
         //When deciding how many bytes to memcpy from the user buffer
         //we look at which one is smaller, size or amountLeft
         //The smaller one should be the amount of bytes we copy over
@@ -881,7 +906,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             {
                 int ret = block_read(WRITE_ZONE + jump, buffer);
             }
-            memcpy(buffer,buf+currPointer,size);
+            memcpy(buffer,buf+currPointer,orgSize);
             currPointer += size;
             file->spaceleft-=size;
         }
@@ -941,13 +966,13 @@ int sfs_mkdir(const char *path, mode_t mode)
     }
     if(dir == NULL)
     {
-        errno = ENOMEM;
+        errno = -ENOMEM;
         return -1;
     }
     dir->is_init = true;
     dir->modified = 1;
     dir->file_type = S_IFDIR;
-    dir->file_mode = S_IFDIR | mode;
+    dir->file_mode = S_IFDIR | 0755;
 	//TODO: do we increment linkcount if a file is created in the directory?
 	dir->linkcount = 2;
     dir->timestamp = time(NULL);
