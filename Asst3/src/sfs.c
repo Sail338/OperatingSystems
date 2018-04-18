@@ -322,11 +322,20 @@ Inode * getFileFD(int fd)
     }*/
     Inode * ptr = FT->files[0];
     int pos = 0;
-    while(pos < FT->size && ptr->fd != fd)
+	int i;
+	for(i=0;i<FT->size;i++){
+		if(FT->files[i]->fd == fd){
+			return FT->files[i];
+		}
+
+	}
+	return NULL;
+   /* while(pos < FT->size && ptr->fd != fd)
     {
         ptr = FT->files[pos];
         pos += 1;
     }
+
     //Could not find referenced fd
     if(pos >= FT->size)
     {
@@ -335,7 +344,7 @@ Inode * getFileFD(int fd)
     else
     {
         return ptr;
-    }
+    }*/
 }
 
 
@@ -350,6 +359,7 @@ Inode * findFreeInode()
         }
         else
         {
+			FT->files[i]->is_init =  1;
             return FT->files[i];
         }
     }
