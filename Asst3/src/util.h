@@ -24,6 +24,10 @@ typedef struct Inode
 				char fileName[128];
 				//timestamp
 				time_t timestamp;
+                //time last modified
+                time_t time_m;
+                //time last accessed
+                time_t time_a;
 				//above is what we only care about in the frist thing in the chain
 				//space left in INODE
 				short spaceleft;
@@ -52,8 +56,12 @@ typedef struct dummyInode
 			    //is this a file or folder
 				int  file_type;	
 				//path
-				//timestamp
+				//timestamp of creation
 				time_t timestamp;
+                //time last modified
+                time_t time_m;
+                //time last accessed
+                time_t time_a;
 				//above is what we only care about in the frist thing in the chain
 				//space left in INODE
 				short spaceleft;

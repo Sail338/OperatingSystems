@@ -246,6 +246,8 @@ int loadFS()
         file->file_mode = temp->file_mode;
         file->is_init = temp->is_init;
         file->linkcount = temp->linkcount;
+        file->time_m = temp->time_m;
+        file->time_a = temp->time_a;
         blockCount+=1;
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
         {
@@ -591,8 +593,8 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
     statbuf->st_size = fileSize(file);
-    statbuf->st_atime = time(NULL);
-    statbuf->st_mtime = time(NULL);
+    statbuf->st_atime = file->time_a;
+    statbuf->st_mtime = file->time_m;
     statbuf->st_ctime = file->timestamp;
     statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
@@ -638,6 +640,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     file->file_mode = S_IFREG | 0755;
 
     file->timestamp = time(NULL);
+    file->time_m = time(NULL);
+    file->time_a = time(NULL);
     //right now this just hardcodes to set root to be the parent
 	//TODO: use SaraAnn's string parsing method to get the actual parent
 	file->parent =  get_parent(path);
@@ -687,6 +691,16 @@ int reinit(Inode * victim)
     return 0;
 }
 
+
+//In a rush: method zeros out the block corresponding with this inode
+void cleanSpace(Inode * victim)
+{
+    int fd = victim->fd;
+    char * emptyBlock = calloc(1,512);
+    int jump = fd/512;
+    int ret = block_write(FT->write_zone+jump,emptyBlock);
+}
+
 /** Remove a file */
 int sfs_unlink(const char *path)
 {
@@ -704,6 +718,7 @@ int sfs_unlink(const char *path)
 		{
 			log_msg("Something wrong with unlink");
 		}
+        cleanSpace(victim);
         FT->num_free_inodes++;
 		victim = getFileFD(next);
 	}
@@ -729,6 +744,7 @@ int sfs_open(const char *path, struct fuse_file_info *fi)
     char * buffer = malloc(128);
     strcpy(buffer,path);
     Inode * file = getFilePath(buffer);
+    file->time_a = time(NULL);
     if(file == NULL)
     {
         errno = ENOENT;
@@ -790,6 +806,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	char * path_buffer = malloc(128);
 	strcpy(path_buffer, path);
 	Inode * file = getFilePath(path_buffer);
+    file->time_a = time(NULL);
 	if (file->permissions != O_RDONLY && file->permissions != O_RDWR)
 	{
 		errno = EACCES;
@@ -861,6 +878,8 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     char * buffer = malloc(strlen(path));
     strcpy(buffer,path);
     Inode * file = getFilePath(buffer);
+    file->time_m = time(NULL);
+    file->time_a = time(NULL);
 	//check and validate write permissions
     if(file->permissions != O_WRONLY && file->permissions != O_RDWR)
     {
@@ -896,7 +915,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     	offset -= BLOCK_SIZE;
     }
     free(buffer);
-    buffer = malloc(512);
+    buffer = calloc(1,512);
 	//#of bytes left to write in CURRENT (not necessarily starting) BLOCK
 	int amountLeft = BLOCK_SIZE - offset;
     int jump = file->fd / 512;
@@ -920,10 +939,19 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		if(offset != 0)
         {
             int ret = block_read(FT->write_zone + jump, buffer);
-            memcpy(buffer+offset,buf+currPointer,amountLeft);
-            currPointer += amountLeft;
+            if(orgSize < amountLeft)
+            {
+                memcpy(buffer+offset,buf+currPointer,orgSize);
+                currPointer += orgSize;
+                file->spaceleft -= orgSize;
+            }
+            else
+            {
+                memcpy(buffer+offset,buf+currPointer,amountLeft);
+                currPointer += amountLeft;
+                file->spaceleft-=amountLeft;
+            }
             offset = 0;
-            file->spaceleft-=amountLeft;
         }
 
         else if(orgSize < amountLeft)
@@ -985,6 +1013,7 @@ int sfs_mkdir(const char *path, mode_t mode)
 	    path, mode);
    
     Inode * dir = findFreeInode();
+
     if(strlen(path) == 1)
     {
         //Root Directory???!!!????
@@ -1002,6 +1031,8 @@ int sfs_mkdir(const char *path, mode_t mode)
 	//TODO: do we increment linkcount if a file is created in the directory?
 	dir->linkcount = 2;
     dir->timestamp = time(NULL);
+    dir->time_m = time(NULL);
+    dir->time_a = time(NULL);
     dir->parent = get_parent(path);
     int slash = strlen(path)-1;
     while(path[slash] != '/')
@@ -1053,7 +1084,11 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n",
 	  path, fi);
-    
+    char * buffer = malloc(512);
+    strcpy(buffer,path);
+    Inode * dir = getFilePath(buffer);
+    free(buffer);
+    dir->time_a = time(NULL);
     return retstat;
 }
 
@@ -1085,6 +1120,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     char * temp = malloc(strlen(path));
     strcpy(temp,path);
     Inode * dir = getFilePath(temp);
+    dir->time_a = time(NULL);
     int i = 0;
     while(i < FT->size)
     {
