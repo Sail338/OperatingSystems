@@ -465,9 +465,12 @@ void * evict(int numRequested)
         //victimStart = randNum(0,((int)(NUM_PAGES*(3.0/4.0))));
         victimStart += 1;
     }
-    while(numPagesSwap != 0)
+	moveToSwap(PT->pages[victimStart]);
+	numPagesSwap -=1;
+	PT->free_pages_in_RAM +=1;
+	PT->free_pages_in_swap -=1;
+    while(numPagesSwap != 0 && ceil_bytes(numRequested) > 1)
     {
-         moveToSwap(PT->pages[victimStart]);
          while(!PT->pages[victimStart]->is_initialized || PT->pages[victimStart]->owner == scheduler->current)
          {
             victimStart +=  1;
@@ -475,6 +478,7 @@ void * evict(int numRequested)
             int bigboi = NUM_PAGES;
             victimStart = victimStart % bigboi;
          }
+         moveToSwap(PT->pages[victimStart]);
          PT->free_pages_in_RAM+=1;
          PT->free_pages_in_swap-=1;
          numPagesSwap-=1;
@@ -1168,11 +1172,12 @@ bool segment_free(void * target)
 /***************** MULTIPLE PAGEY THINGS *****************/
 
 int swap(page * p1, page * p2)
+
 {
-    if(p1->fileIndex > -1 && p2->fileIndex > -1)
+   if(p1->fileIndex > -1 && p2->fileIndex > -1)
     {
         printf("Hello? Swapping two pages in Swap??????\n");
-        exit(1);
+		exit(1);
     }
     int p1Info = getKey(p2);
     int p2Info = getKey(p1);

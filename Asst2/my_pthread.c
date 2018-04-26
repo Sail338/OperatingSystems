@@ -149,8 +149,11 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	 *Initlaize scheduler
 	 **/
 	if(init == 0){
+		char *x = malloc(1);
+		free(x);
 	    initScheduler();	
 	}
+	
     __atomic_store_n(&(scheduler->SYS),true,__ATOMIC_SEQ_CST);
 	//create a threadNode
 	threadNode * node = NULL;

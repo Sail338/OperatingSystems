@@ -27,6 +27,7 @@
 #include <sys/xattr.h>
 #endif
 #define MAX_INODES 1530
+//#define WRITE_ZONE (sizeof(dummyInode)*MAX_INODES)/BLOCK_SIZE  + (128 * MAX_INODES)/BLOCK_SIZE
 #include "log.h"
 #include "util.h"
 ///////////////////////////////////////////////////////////////////////
@@ -179,6 +180,11 @@ int loadFS()
    {
         return init;
    }
+   //Destory was called 
+   if(init == 512 && *(int*)buffer == 0)
+   {
+        init = 0;
+   }
    FT = malloc(sizeof(FileTable*));
    if(init == 0)
    {
@@ -195,7 +201,7 @@ int loadFS()
             return ret;
         }
    }
-   FT->files = malloc(FT->num_free_inodes*sizeof(Inode*));
+   FT->files = malloc(FT->size*sizeof(Inode*));
    int i;
    int blockCount = 0;
    int blockCurr = 1;
@@ -218,6 +224,13 @@ int loadFS()
         file->prev = -1;
         file->is_init = false;
         file->parent = -1;
+        blockCount+=1;
+        if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
+        {
+            blockCount = 0;
+            blockCurr++;
+        }
+
     }
     else
     {
@@ -233,6 +246,8 @@ int loadFS()
         file->file_mode = temp->file_mode;
         file->is_init = temp->is_init;
         file->linkcount = temp->linkcount;
+        file->time_m = temp->time_m;
+        file->time_a = temp->time_a;
         blockCount+=1;
         if(blockCount == (int)(BLOCK_SIZE/sizeof(struct dummyInode)))
         {
@@ -273,8 +288,15 @@ int loadFS()
 
         }
         memcpy(file->fileName,buffer+(blockCount*128),BLOCK_SIZE/4);
-        blockCount += 1;
     }
+    else if(blockCount == 4)
+    {
+            blockCount = 0;
+            blockCurr++;
+
+    }
+    blockCount+=1;
+
    }
    if(init == 0) 
    {
@@ -285,6 +307,7 @@ int loadFS()
             return writeRet;
         }
    }
+   FT->write_zone = blockCurr+1;
    return 0;
 }
 
@@ -301,11 +324,20 @@ Inode * getFileFD(int fd)
     }*/
     Inode * ptr = FT->files[0];
     int pos = 0;
-    while(pos < FT->size && ptr->fd != fd)
+	int i;
+	for(i=0;i<FT->size;i++){
+		if(FT->files[i]->fd == fd){
+			return FT->files[i];
+		}
+
+	}
+	return NULL;
+   /* while(pos < FT->size && ptr->fd != fd)
     {
         ptr = FT->files[pos];
         pos += 1;
     }
+
     //Could not find referenced fd
     if(pos >= FT->size)
     {
@@ -314,7 +346,7 @@ Inode * getFileFD(int fd)
     else
     {
         return ptr;
-    }
+    }*/
 }
 
 
@@ -329,6 +361,7 @@ Inode * findFreeInode()
         }
         else
         {
+			FT->files[i]->is_init =  1;
             return FT->files[i];
         }
     }
@@ -352,10 +385,22 @@ int validatePath(char * path, Inode * ptr)
 					secondSlash=i;
 					init = 1;
 					i--;
+                    if(i < 0)
+                    {
+                        if(ptr->parent == 0)
+                        {
+                            return 1;
+                        }
+                        else
+                        {
+                            return 0;
+                        }
+                    }
 					continue;
 			}
             firstSlash = i;
-            memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash+1);
+            memcpy(fileName,(path+firstSlash+1),secondSlash-firstSlash-1);
+            fileName[secondSlash-firstSlash-1]='\0';
             secondSlash=i;
             if(strcmp(getFileFD(ptr->parent)->fileName,fileName) == 0)
             {
@@ -478,7 +523,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//log_msg("STATE BEFORE %p",state);
     //log_fuse_context(fuse_get_context());
     log_conn(conn);
-	sleep(15);
+    //sleep(15);
     disk_open((SFS_DATA)->diskfile);
 	int ret = loadFS();
     if(ret != 0)
@@ -508,6 +553,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 void sfs_destroy(void *userdata)
 {
     log_msg("\nsfs_destroy(userdata=0x%08x)\n", userdata);
+    char block[128];
+    writeFS(0);
+    struct sfs_state * sfs_data = (struct sfs_state *)userdata;
+    disk_close(sfs_data->diskfile);
 }
 
 /** Get file attributes.
@@ -537,15 +586,15 @@ int sfs_getattr(const char *path, struct stat *statbuf)
    	 	statbuf->st_nlink = 2;
 	}
 	else{
-    	statbuf->st_mode = file->file_mode;
+    	//statbuf->st_mode = file->file_mode;
+        statbuf->st_mode = file->file_mode;
     	statbuf->st_nlink = file->linkcount;
 	}
-    //How do we get the userid of the person who ran the program?
     statbuf->st_uid = getuid();
     statbuf->st_gid = getgid();
     statbuf->st_size = fileSize(file);
-    statbuf->st_atime = time(NULL);
-    statbuf->st_mtime = time(NULL);
+    statbuf->st_atime = file->time_a;
+    statbuf->st_mtime = file->time_m;
     statbuf->st_ctime = file->timestamp;
     statbuf->st_blksize = 0;
     statbuf->st_blocks = fileTotalSize(file)/BLOCK_SIZE;
@@ -588,12 +637,16 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	}
 
     //memcpy(file->fileName,path,strlen(path));
-    file->file_mode = mode;
+    file->file_mode = S_IFREG | 0755;
+
     file->timestamp = time(NULL);
+    file->time_m = time(NULL);
+    file->time_a = time(NULL);
     //right now this just hardcodes to set root to be the parent
 	//TODO: use SaraAnn's string parsing method to get the actual parent
 	file->parent =  get_parent(path);
     writeFS(0);
+    FT->num_free_inodes--;
     return retstat;
 }
 
@@ -625,14 +678,50 @@ int get_parent (const char * full_path)
 	}
 }
 
+int reinit(Inode * victim)
+{
+	victim->file_position = 0;
+	victim->fileName[0] = '\0';
+	victim->is_init = 0;
+	victim->parent = -1;
+	victim->modified = 1;
+	victim->next = -1;
+	victim->prev = -1;
+	victim->spaceleft = BLOCK_SIZE;
+    return 0;
+}
+
+
+//In a rush: method zeros out the block corresponding with this inode
+void cleanSpace(Inode * victim)
+{
+    int fd = victim->fd;
+    char * emptyBlock = calloc(1,512);
+    int jump = fd/512;
+    int ret = block_write(FT->write_zone+jump,emptyBlock);
+}
 
 /** Remove a file */
 int sfs_unlink(const char *path)
 {
     int retstat = 0;
     log_msg("sfs_unlink(path=\"%s\")\n", path);
-
-    
+	char * buffer = malloc(128);
+	strcpy(buffer,path);
+	int next;
+	Inode * victim = getFilePath(buffer);
+	while(victim != NULL)
+	{
+		next = victim->next;
+		int ret = reinit(victim);
+		if(ret != 0)
+		{
+			log_msg("Something wrong with unlink");
+		}
+        cleanSpace(victim);
+        FT->num_free_inodes++;
+		victim = getFileFD(next);
+	}
     return retstat;
 }
 
@@ -646,14 +735,29 @@ int sfs_unlink(const char *path)
  *
  * Changed in version 2.2
  */
+//Do we have to conside the user/group/all permissions when opening a file?
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
     log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
 	    path, fi);
-
-    
-    return retstat;
+    char * buffer = malloc(128);
+    strcpy(buffer,path);
+    Inode * file = getFilePath(buffer);
+    file->time_a = time(NULL);
+    if(file == NULL)
+    {
+        errno = ENOENT;
+        return -1 * errno;
+    }
+    if(file->file_type == S_IFDIR)
+    {
+        errno = EISDIR;
+        return -1 * errno;
+    }
+    file->permissions = O_RDWR;
+    writeFS(0);
+    return 0;
 }
 
 /** Release an open file
@@ -679,12 +783,13 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
 
     return retstat;
 }
-
+//TODO: see about padding with zeros - it seems like the only time would need to do that is on EOF, no?
 /** Read data from an open file
  *
  * Read should return exactly the number of bytes requested except
  * on EOF or error, otherwise the rest of the data will be
- * substituted with zeroes.  An exception to this is when the
+ * substituted with zeroes.  TODO: wtf does this mean???
+ * An exception to this is when the
  * 'direct_io' mount option is specified, in which case the return
  * value of the read system call will reflect the return value of
  * this operation.
@@ -694,13 +799,66 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
 int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
-    log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+    int num_read = 0;
+	int total_read = 0;
+	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
-
-   
-    return retstat;
+	char * path_buffer = malloc(128);
+	strcpy(path_buffer, path);
+	Inode * file = getFilePath(path_buffer);
+    file->time_a = time(NULL);
+	if (file->permissions != O_RDONLY && file->permissions != O_RDWR)
+	{
+		errno = EACCES;
+		return -1;
+	}
+	//if the offset is bigger than a block, move along inodes until you find the correct block
+	while (offset >= BLOCK_SIZE)
+	{
+		file = getFileFD(file->next);
+		offset -= BLOCK_SIZE;
+	}
+	int jump = file->fd/512;
+  	char * intermediate_buffer = malloc(BLOCK_SIZE);	
+	
+	if (offset > 0)
+	{
+		int ret = block_read(FT->write_zone+jump, intermediate_buffer);
+		//copy only the relevant bytes into the buffer being returned to the user
+		memcpy(buf, intermediate_buffer+offset, 512-offset); 
+		total_read = 512 - offset;
+		size -= total_read;
+		//progress to the next block
+		file = getFileFD(file->next);
+		jump = file->fd/BLOCK_SIZE;
+	}
+	while (size > 0)
+	{
+		int ret = block_read(FT->write_zone+jump, intermediate_buffer);
+		if (size >= 512)
+		{
+			memcpy(buf+total_read, intermediate_buffer, 512);
+			num_read = 512;
+			total_read += 512;
+		}
+		else
+		{
+			memcpy(buf+total_read, intermediate_buffer, size);
+			num_read = size;
+			total_read += num_read;
+		}
+		size -= num_read;
+		file = getFileFD(file->next);
+        if(file == NULL)
+        {
+            break;
+        }
+		jump = file -> fd/BLOCK_SIZE;
+	}
+    return total_read;
 }
 
+//TODO: if there isn't enough space to write all that was requested, should you write as much as there IS space for, and return that, or should you just reject the whole operation?
 /** Write data to an open file
  *
  * Write should return exactly the number of bytes requested
@@ -713,11 +871,137 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
     int retstat = 0;
+    //# of bytes to originally write, since size variable changes
+	int the_size = size;
     log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
-    
-    
-    return retstat;
+    char * buffer = malloc(strlen(path));
+    strcpy(buffer,path);
+    Inode * file = getFilePath(buffer);
+    file->time_m = time(NULL);
+    file->time_a = time(NULL);
+	//check and validate write permissions
+    if(file->permissions != O_WRONLY && file->permissions != O_RDWR)
+    {
+        errno = EACCES;
+        return -1;
+    }
+    //this math isn't quite perfect - for example if the offset is 512 but the size is 1, it should get two inodes but here it only gets one
+    //We shouldn't link inodes if we know there aren't enough free files for this to work
+    if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCK_SIZE) > FT->num_free_inodes)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+    //this loop is for allocation of ENTIRE blocks if there isn't already sufficient space linked to the original inode
+	while(offset >= BLOCK_SIZE)
+    {
+        Inode * old = file;
+        file = getFileFD(file->next);
+        if(file == NULL)
+        {
+            Inode * newFile = findFreeInode();
+            //THIS SHOULD NOT HAPPEN. IF YOU GET HERE AND THIS HAPPENS SOMETHING IS HORRIBLY WRONG
+			if(newFile == NULL)
+            {
+                errno = ENOMEM;
+                return -1;
+            }
+            old->next = newFile->fd;
+            newFile->prev = old->fd;
+            file = newFile;
+			FT->num_free_inodes --;
+        }
+    	offset -= BLOCK_SIZE;
+    }
+    free(buffer);
+    buffer = calloc(1,512);
+	//#of bytes left to write in CURRENT (not necessarily starting) BLOCK
+	int amountLeft = BLOCK_SIZE - offset;
+    int jump = file->fd / 512;
+    int currPointer = 0;
+    //this is for the actual writing process
+	while(size > 0)
+    {
+        int orgSize = size;
+        if(size < amountLeft)
+        {
+            size = 0;
+        }
+        else
+        {
+            size -= amountLeft;
+        }
+        //When deciding how many bytes to memcpy from the user buffer
+        //we look at which one is smaller, size or amountLeft
+        //The smaller one should be the amount of bytes we copy over
+        	//this is the case you don't write from the very beginning, in which case you need to read, rewrite the old info, and then rewrite whatever is left
+		if(offset != 0)
+        {
+            int ret = block_read(FT->write_zone + jump, buffer);
+            if(orgSize < amountLeft)
+            {
+                memcpy(buffer+offset,buf+currPointer,orgSize);
+                currPointer += orgSize;
+                file->spaceleft -= orgSize;
+            }
+            else
+            {
+                memcpy(buffer+offset,buf+currPointer,amountLeft);
+                currPointer += amountLeft;
+                file->spaceleft-=amountLeft;
+            }
+            offset = 0;
+        }
+
+        else if(orgSize < amountLeft)
+        {
+            if(orgSize < BLOCK_SIZE)
+            {
+                int ret = block_read(FT->write_zone + jump, buffer);
+            }
+            memcpy(buffer,buf+currPointer,orgSize);
+            currPointer += orgSize;
+            file->spaceleft-=orgSize;
+        }
+        else
+        {
+            if(orgSize < BLOCK_SIZE)
+            {
+                int ret = block_read(FT->write_zone + jump, buffer);
+            }
+            memcpy(buffer,buf+currPointer,amountLeft);
+            currPointer += amountLeft;
+            file->spaceleft-=amountLeft;
+        }
+        int ret = block_write(FT->write_zone +jump,buffer);
+        if(ret == 0 || ret < 0)
+        {
+            log_msg("I/O ERROR Hello?\n");
+            return -1;
+        }
+        if(size > 0)
+        {
+            Inode * oldNext = file;
+            file = getFileFD(file->next);
+            if(file == NULL)
+            {
+                Inode * newFile = findFreeInode();
+                if(newFile == NULL)
+                {
+                    log_msg("This Error should not occur, happening in WRITE\n");
+                    return -1;
+                }
+                oldNext->next = newFile->fd;
+                newFile->prev = oldNext->fd;
+                file = newFile;
+            }
+            jump = file->fd/BLOCK_SIZE;
+        }
+        amountLeft = BLOCK_SIZE;
+        
+    }
+    return the_size;
 }
 
 
@@ -728,7 +1012,36 @@ int sfs_mkdir(const char *path, mode_t mode)
     log_msg("\nsfs_mkdir(path=\"%s\", mode=0%3o)\n",
 	    path, mode);
    
-    
+    Inode * dir = findFreeInode();
+
+    if(strlen(path) == 1)
+    {
+        //Root Directory???!!!????
+        return -99;
+    }
+    if(dir == NULL)
+    {
+        errno = -ENOMEM;
+        return -1;
+    }
+    dir->is_init = true;
+    dir->modified = 1;
+    dir->file_type = S_IFDIR;
+    dir->file_mode = S_IFDIR | 0755;
+	//TODO: do we increment linkcount if a file is created in the directory?
+	dir->linkcount = 2;
+    dir->timestamp = time(NULL);
+    dir->time_m = time(NULL);
+    dir->time_a = time(NULL);
+    dir->parent = get_parent(path);
+    int slash = strlen(path)-1;
+    while(path[slash] != '/')
+    {
+        slash--;
+    }
+    strcpy(dir->fileName,path+slash+1);
+    writeFS(0);
+    FT->num_free_inodes--;
     return retstat;
 }
 
@@ -739,11 +1052,25 @@ int sfs_rmdir(const char *path)
     int retstat = 0;
     log_msg("sfs_rmdir(path=\"%s\")\n",
 	    path);
-    
-    
+    char * buffer = malloc(128);
+    strcpy(buffer,path);
+    Inode * dir = getFilePath(buffer);
+    //Check if the Dir is empty
+    int i = 1;
+    while( i < FT->size)
+    {
+        if(FT->files[i]->parent == dir->fd)
+        {
+            errno = ENOTEMPTY;
+            return -1;
+        }
+        i++;
+    }
+    //Directory is empty, commence the uninitialization!
+    reinit(dir);
+    writeFS(0);
     return retstat;
 }
-
 
 /** Open directory
  *
@@ -757,7 +1084,11 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n",
 	  path, fi);
-    
+    char * buffer = malloc(512);
+    strcpy(buffer,path);
+    Inode * dir = getFilePath(buffer);
+    free(buffer);
+    dir->time_a = time(NULL);
     return retstat;
 }
 
@@ -789,6 +1120,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     char * temp = malloc(strlen(path));
     strcpy(temp,path);
     Inode * dir = getFilePath(temp);
+    dir->time_a = time(NULL);
     int i = 0;
     while(i < FT->size)
     {
@@ -812,6 +1144,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     return retstat;
 }
 
+//WTF IS THIS
 /** Release directory
  *
  * Introduced in version 2.3
@@ -819,12 +1152,11 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 int sfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
-
-
     return retstat;
 }
 
-struct fuse_operations sfs_oper = {
+struct fuse_operations sfs_oper = 
+{
   .init = sfs_init,
   .destroy = sfs_destroy,
 
