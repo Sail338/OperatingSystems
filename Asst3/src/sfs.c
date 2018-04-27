@@ -638,7 +638,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
     //memcpy(file->fileName,path,strlen(path));
     file->file_mode = S_IFREG | 0755;
-
     file->timestamp = time(NULL);
     file->time_m = time(NULL);
     file->time_a = time(NULL);
@@ -688,6 +687,8 @@ int reinit(Inode * victim)
 	victim->next = -1;
 	victim->prev = -1;
 	victim->spaceleft = BLOCK_SIZE;
+    victim->file_type = 0;
+    victim->file_mode = 0;
     return 0;
 }
 
