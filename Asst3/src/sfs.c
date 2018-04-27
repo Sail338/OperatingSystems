@@ -26,7 +26,7 @@
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
-#define MAX_INODES 1530
+#define MAX_INODES 23000
 //#define WRITE_ZONE (sizeof(dummyInode)*MAX_INODES)/BLOCK_SIZE  + (128 * MAX_INODES)/BLOCK_SIZE
 #include "log.h"
 #include "util.h"
@@ -77,7 +77,6 @@ int writeFS(int init)
             continue;
         }*/
         dummyInode * temp = malloc(sizeof(dummyInode));
-        temp->file_position = file->file_position;
         temp->fd = file->fd;
         temp->permissions = file->permissions;
         temp->file_mode = file->file_mode;
@@ -148,7 +147,6 @@ int writeFS(int init)
             }
             retread = block_read(blockCurr, readbuffer);
         }
-        file->modified = 0;
     }
     if(blockCount != 0)
     {
@@ -217,7 +215,6 @@ int loadFS()
         file->file_type = 0;
         file->file_mode = 0;
         file->timestamp = 0;
-        file->file_position = 0;
         file->linkcount = 0;
         file->spaceleft = BLOCK_SIZE;
         file->next = -1;
@@ -242,7 +239,6 @@ int loadFS()
         file->prev = temp->prev;
         file->parent = temp->parent;
         file->timestamp = temp->timestamp;
-        file->file_position = temp->file_position;
         file->file_mode = temp->file_mode;
         file->is_init = temp->is_init;
         file->linkcount = temp->linkcount;
@@ -361,10 +357,12 @@ Inode * findFreeInode()
         }
         else
         {
+            FT->num_free_inodes-=1;
 			FT->files[i]->is_init =  1;
             return FT->files[i];
         }
     }
+
     return NULL;
 }
 
@@ -534,7 +532,6 @@ void *sfs_init(struct fuse_conn_info *conn)
     memcpy(FT->files[0]->fileName,"/",2);
 	FT->files[0]->is_init = true;
 	FT->files[0] -> file_type = S_IFDIR;
-    FT->files[0]->modified = 1;
     writeFS(0);
     log_msg("Finished SFS INIT\n");	
     fuse_get_context()->uid = getuid();
@@ -625,7 +622,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
         return -ENOMEM;
     }
     file->is_init = 1;
-    file->modified = 1;
 	char* buf = malloc(strlen(path));
 	strcpy(buf,path);
 	char * last = strrchr(buf, '/');;
@@ -644,8 +640,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     //right now this just hardcodes to set root to be the parent
 	//TODO: use SaraAnn's string parsing method to get the actual parent
 	file->parent =  get_parent(path);
+    file->permissions = O_RDWR;
     writeFS(0);
-    FT->num_free_inodes--;
     return retstat;
 }
 
@@ -679,11 +675,9 @@ int get_parent (const char * full_path)
 
 int reinit(Inode * victim)
 {
-	victim->file_position = 0;
 	victim->fileName[0] = '\0';
 	victim->is_init = 0;
 	victim->parent = -1;
-	victim->modified = 1;
 	victim->next = -1;
 	victim->prev = -1;
 	victim->spaceleft = BLOCK_SIZE;
@@ -889,13 +883,20 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     }
     //this math isn't quite perfect - for example if the offset is 512 but the size is 1, it should get two inodes but here it only gets one
     //We shouldn't link inodes if we know there aren't enough free files for this to work
-    if((int)(size/BLOCK_SIZE) + (int)(offset/BLOCK_SIZE) > FT->num_free_inodes)
+        //this loop is for allocation of ENTIRE blocks if there isn't already sufficient space linked to the original inode
+    int testOffset = offset;
+    Inode * temp = file;
+    while(temp->next != -1)
+    {
+        testOffset -= BLOCK_SIZE;
+        temp = getFileFD(temp->next);
+    }
+	if((int)(size/BLOCK_SIZE) + (int)(testOffset/BLOCK_SIZE) > FT->num_free_inodes)
     {
         errno = ENOMEM;
         return -1;
     }
-    //this loop is for allocation of ENTIRE blocks if there isn't already sufficient space linked to the original inode
-	while(offset >= BLOCK_SIZE)
+    while(offset >= BLOCK_SIZE)
     {
         Inode * old = file;
         file = getFileFD(file->next);
@@ -911,10 +912,11 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
             old->next = newFile->fd;
             newFile->prev = old->fd;
             file = newFile;
-			FT->num_free_inodes --;
         }
     	offset -= BLOCK_SIZE;
     }
+   
+
     free(buffer);
     buffer = calloc(1,512);
 	//#of bytes left to write in CURRENT (not necessarily starting) BLOCK
@@ -1026,7 +1028,6 @@ int sfs_mkdir(const char *path, mode_t mode)
         return -1;
     }
     dir->is_init = true;
-    dir->modified = 1;
     dir->file_type = S_IFDIR;
     dir->file_mode = S_IFDIR | 0755;
 	//TODO: do we increment linkcount if a file is created in the directory?
@@ -1042,7 +1043,6 @@ int sfs_mkdir(const char *path, mode_t mode)
     }
     strcpy(dir->fileName,path+slash+1);
     writeFS(0);
-    FT->num_free_inodes--;
     return retstat;
 }
 

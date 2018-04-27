@@ -11,7 +11,6 @@ int IS_FILE_TABLE_INIT;
 typedef struct Inode
 {
 			//we only care about the positon for the first inode in the chain
-				int file_position;
 				int fd;
 				//permissions the file was created with
 				int permissions;
@@ -38,7 +37,6 @@ typedef struct Inode
                 int parent;
 				bool is_init;
 				short linkcount;
-                int modified;
 			
 }Inode;
 
@@ -46,7 +44,6 @@ typedef struct dummyInode
 {
 
 		        //we only care aboyt the positon for the first inode in the chain
-				int file_position;
 				int fd;
                 int modified;
 				//permissions the file was created with
