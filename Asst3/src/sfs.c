@@ -1160,11 +1160,15 @@ int sfs_truncate(const char* path,off_t size){
 	return 0;
 
 }
+int sfs_utimens(const char* path, const struct timespec ts[2]){
+	return 0;
+}
 struct fuse_operations sfs_oper = 
 {
   .init = sfs_init,
   .destroy = sfs_destroy,
   .truncate = sfs_truncate,
+  .utimens = sfs_utimens,
   .getattr = sfs_getattr,
   .create = sfs_create,
   .unlink = sfs_unlink,
