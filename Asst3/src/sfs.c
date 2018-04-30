@@ -1156,11 +1156,15 @@ int sfs_releasedir(const char *path, struct fuse_file_info *fi)
     return retstat;
 }
 
+int sfs_truncate(const char* path,off_t size){
+	return 0;
+
+}
 struct fuse_operations sfs_oper = 
 {
   .init = sfs_init,
   .destroy = sfs_destroy,
-
+  .truncate = sfs_truncate,
   .getattr = sfs_getattr,
   .create = sfs_create,
   .unlink = sfs_unlink,
